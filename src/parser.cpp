@@ -24,8 +24,8 @@ parse_int(const char *str)
   return ret;
 }
 
-size_t token_idx = 0;
 static ast_id_t next = 0;
+static size_t token_idx = 0;
 
 void
 Parser::parse(void)
@@ -66,6 +66,8 @@ Parser::ast_token(const token_t &token)
     }
 
     ast.next = last_ast.next;
+
+    // indicate the end of the body
     last_ast.next = -1;
 
     if (!done) {
