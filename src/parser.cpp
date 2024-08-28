@@ -71,7 +71,7 @@ Parser::ast_token(const token_t &token)
     last_ast.next = -1;
 
     if (!done) {
-      std::cout << token.loc << " error: no end found" << std::endl;
+      std::cerr << token.loc << " error: no end found" << std::endl;
       exit(1);
     }
 
