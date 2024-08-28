@@ -20,8 +20,4 @@ file_t::file_t(str_t file_path)
   : file_id(FILES_SIZE++),
     file_path(file_path) {};
 
-file_t FILES[128];
-file_id_t FILES_SIZE = 0;
-
-#define fileid(id) (FILES[id])
-#define append_file(file_) (FILES[file_.file_id] = file_)
+DECLARE_STATIC(file, FILE);

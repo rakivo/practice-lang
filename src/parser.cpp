@@ -8,57 +8,10 @@
 #include <cstdlib>
 #include <iostream>
 
-void
-print_ast(const ast_t &ast)
-{
-  std::cout << "AST ID: " << ast.ast_id << std::endl;
-  std::cout << "File ID: " << ast.file_id << std::endl;
-  std::cout << "Next AST ID: " << ast.next << std::endl;
-  std::cout << "AST Kind: ";
-
-  switch (ast.ast_kind) {
-  case AST_PUSH: {
-    std::cout << "AST_PUSH" << std::endl;
-    std::cout << "Value Kind: " << (ast.push_stmt.value_kind == VALUE_KIND_INTEGER ? "Integer" : "String") << std::endl;
-    if (ast.push_stmt.value_kind == VALUE_KIND_INTEGER)
-      std::cout << "Integer Value: " << ast.push_stmt.integer << std::endl;
-    else
-      std::cout << "String Value: " << (ast.push_stmt.str ? ast.push_stmt.str : "null") << std::endl;
-  } break;
-
-  case AST_IF: {
-    std::cout << "AST_IF" << std::endl;
-    std::cout << "Then Body ID: " << ast.if_stmt.then_body << std::endl;
-    std::cout << "Else Body ID: " << ast.if_stmt.else_body << std::endl;
-  } break;
-
-  case AST_PLUS: std::cout << "AST_PLUS" << std::endl; break;
-  case AST_EQUAL: std::cout << "AST_EQUAL" << std::endl; break;
-
-  default: UNREACHABLE;
-  }
-
-  std::cout << "--------------" << std::endl;
-}
-
-void
-Parser::parse(void)
-{
-  ast_id_t next = 0;
-  size_t i = 0;
-  while (i < this->ts.size()) {
-    ast_token(this->ts[i], i, next);
-    i++;
-  }
-}
-
-static i64
+INLINE i64
 parse_int(const char *str)
 {
-  static_assert(sizeof(long int) == sizeof(i64));
-
   errno = 0;
-
   const i64 ret = strtol(str, NULL, 10);
 
   if ((errno == ERANGE
@@ -71,38 +24,56 @@ parse_int(const char *str)
   return ret;
 }
 
+size_t token_idx = 0;
+static ast_id_t next = 0;
+
 void
-Parser::ast_token(const token_t &token, size_t &i, ast_id_t &next)
+Parser::parse(void)
+{
+  while (token_idx < this->ts.size()) {
+    const ast_t ast = ast_token(this->ts[token_idx]);
+    append_ast(ast);
+    token_idx++;
+  }
+}
+
+ast_t
+Parser::ast_token(const token_t &token)
 {
   switch (token.type) {
   case TOKEN_IF: {
-    i++;
-    bool done = false;
-    ast_id_t then_body = next + 1;
-    while (!done && i < this->ts.size()) {
-      const token_t token_ = this->ts[i];
-      if (token_.type == TOKEN_END) {
-        i++;
-        done = true;
-        break;
-      }
-
-      ast_token(token_, ++i, next);
-    }
-
-    if (!done) {
-      eprintf("No end");
-      exit(1);
-    }
+    // Skip `if` keyword
+    token_idx++;
 
     ast_t ast = make_ast(0, ++next, AST_IF,
       .if_stmt = {
-        .then_body = then_body,
+        .then_body = next,
         .else_body = -1,
       }
     );
 
-    append_ast(ast);
+    bool done = false;
+    while (!done && token_idx < this->ts.size()) {
+      const token_t token_ = this->ts[token_idx];
+      if (token_.type == TOKEN_END) {
+        done = true;
+        break;
+      }
+
+      token_idx++;
+      const ast_t ast = ast_token(token_);
+      append_ast(ast);
+    }
+
+    ast.next = last_ast.next;
+    last_ast.next = -1;
+
+    if (!done) {
+      std::cout << token.loc << " error: no end found" << std::endl;
+      exit(1);
+    }
+
+    return ast;
   } break;
 
   case TOKEN_END: {
@@ -118,29 +89,28 @@ Parser::ast_token(const token_t &token, size_t &i, ast_id_t &next)
         .integer = parse_int(token.str),
       }
     );
-    append_ast(ast);
+    return ast;
   } break;
 
   case TOKEN_LITERAL: {
-    UNREACHABLE;
+    TODO("Handle literals");
   } break;
 
   case TOKEN_EQUAL: {
     ast_t ast = make_ast(0, ++next, AST_EQUAL, .equal_stmt = {});
-    append_ast(ast);
+    return ast;
   } break;
 
   case TOKEN_PLUS: {
     ast_t ast = make_ast(0, ++next, AST_PLUS, .plus_stmt = {});
-    append_ast(ast);
+    return ast;
   } break;
 
   case TOKEN_DOT: {
     ast_t ast = make_ast(0, ++next, AST_DOT, .dot_stmt = {});
-    append_ast(ast);
+    return ast;
   } break;
-
-  default:
-    UNREACHABLE;
   }
+
+  UNREACHABLE;
 }

@@ -22,8 +22,9 @@ struct file_t {
   file_t(str_t file_path);
 };
 
-extern file_t FILES[128];
-extern file_id_t FILES_SIZE;
+DECLARE_EXTERN(file, FILE);
 
 #define fileid(id) (FILES[id])
+#define files_len (FILES_SIZE)
+#define last_file (FILES[FILES_SIZE - 1])
 #define append_file(file_) (FILES[file_.file_id] = file_)

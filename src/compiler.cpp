@@ -6,7 +6,7 @@
 #include <cstdlib>
 
 #define wln(...) (stream << __VA_ARGS__ << std::endl)
-#define wtln(...) (stream << "    " << __VA_ARGS__ << std::endl)
+#define wtln(...) (stream << "  " << __VA_ARGS__ << std::endl)
 
 static void
 compile_ast(const ast_t &ast, std::ofstream &stream)
@@ -67,8 +67,6 @@ compile_ast(const ast_t &ast, std::ofstream &stream)
     wtln("mov r15, 1"); // mov 1 to r15 to print newline
     wtln("call dmp_i64");
   } break;
-
-  default: UNREACHABLE;
   }
 }
 
@@ -205,7 +203,7 @@ Compiler::compile(void)
   wln("_start:");
 
   ast_t ast = astid(this->ast_cur);
-  while (ast.next && ast.next < ASTS_SIZE) {
+  while (ast.next && ast.next <= ASTS_SIZE) {
     compile_ast(ast, stream);
     ast = astid(ast.next);
   }

@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "ast.hpp"
 #include "lexer.hpp"
 
 struct Parser {
@@ -15,6 +16,6 @@ struct Parser {
   void
   parse(void);
 
-  void
-  ast_token(const token_t &token, size_t &i, ast_id_t &next);
+  ast_t
+  ast_token(const token_t &token);
 };

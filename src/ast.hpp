@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.hpp"
 #include "file.hpp"
 
 #include <iostream>
@@ -11,14 +12,9 @@ enum value_kind_t {
   VALUE_KIND_STRING,
 };
 
-struct plus_stmt_t {
-};
-
-struct equal_stmt_t {
-};
-
-struct dot_stmt_t {
-};
+struct dot_stmt_t {};
+struct plus_stmt_t {};
+struct equal_stmt_t {};
 
 struct push_stmt_t {
   value_kind_t value_kind;
@@ -36,9 +32,9 @@ struct if_stmt_t {
 
 enum ast_kind_t {
   AST_IF,
+  AST_DOT,
   AST_PUSH,
   AST_PLUS,
-  AST_DOT,
   AST_EQUAL,
 };
 
@@ -52,20 +48,24 @@ struct ast_t {
   ast_kind_t ast_kind;
 
   union {
+    if_stmt_t if_stmt;
+    dot_stmt_t dot_stmt;
     plus_stmt_t plus_stmt;
     push_stmt_t push_stmt;
-    if_stmt_t if_stmt;
     equal_stmt_t equal_stmt;
-    dot_stmt_t dot_stmt;
   };
 };
 
+void
+print_ast(const ast_t &ast);
+
 static_assert(sizeof(ast_t) == 32);
 
-extern ast_t ASTS[1024];
-extern ast_id_t ASTS_SIZE;
+DECLARE_EXTERN(ast, AST);
 
 #define astid(id) (ASTS[id])
+#define asts_len (ASTS_SIZE)
+#define last_ast (ASTS[ASTS_SIZE - 1])
 #define append_ast(ast_) (ASTS[ast_.ast_id] = std::move(ast_))
 
 // Last argument represents stmt

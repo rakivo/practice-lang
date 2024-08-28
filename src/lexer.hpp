@@ -12,7 +12,7 @@ enum token_kind_t {
   TOKEN_IF,
   TOKEN_END,
 
-  // Separator of keywords and other tokens.
+  // Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.
   TOKEN_KEYWORDS_END,
 
   TOKEN_INTEGER,

@@ -26,7 +26,6 @@ std::ostream
   case TOKEN_DOT:          os << "TOKEN_DOT";          break;
   case TOKEN_IF:           os << "TOKEN_IF";           break;
   case TOKEN_END:          os << "TOKEN_END";          break;
-  default: UNREACHABLE;
   }
   return os;
 }
@@ -34,7 +33,7 @@ std::ostream
 std::ostream
 &operator<<(std::ostream &os, const loc_t &loc)
 {
-  os << fileid(loc.file_id).file_path.buf << ':' << loc.row + 1 << ':' << loc.col + 1;
+  os << fileid(loc.file_id).file_path.buf << ':' << loc.row + 1 << ':' << loc.col + 1 << ':';
   return os;
 }
 
@@ -59,7 +58,7 @@ Lexer::lex(void)
   return ret;
 }
 
-static i32
+INLINE i32
 check_for_keywords(const char *str)
 {
   for (size_t i = 0; i < KEYWORDS_SIZE; ++i) {
@@ -84,10 +83,9 @@ Lexer::type_token(const std::string &str)
   case '.': return TOKEN_DOT;   break;
   case '+': return TOKEN_PLUS;  break;
   case '=': return TOKEN_EQUAL; break;
-  default:
-    eprintf("UNEXPECTED CHARACTER: %c\n", first);
-    TODO("Create other token types");
   }
+
+  UNREACHABLE;
 }
 
 void

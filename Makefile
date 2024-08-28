@@ -2,14 +2,14 @@ SRC_DIR := src
 BUILD_DIR := build
 INCLUDE_DIR := include
 SRC_FILES := $(wildcard $(SRC_DIR)/*)
-WARN_FLAGS=-Wno-c99-designator
 ROOT_CPP_FILE := $(SRC_DIR)/main.cpp
 CPP_FILES := $(filter-out $(ROOT_CPP_FILE), $(wildcard $(SRC_DIR)/*.cpp))
 
-CC=clang++
+CC := clang++
 
-INCLUDE_FLAGS=-I./$(INCLUDE_DIR)
-CFLAGS=-std=c++20 -Wall -Wextra -Wpedantic -O0 -g
+WARN_FLAGS := -Wall -Wextra -Wpedantic -Wno-c99-designator -Wswitch-enum
+INCLUDE_FLAGS := -I./$(INCLUDE_DIR)
+CFLAGS := -std=c++17 -O0 -g
 
 all: $(BUILD_DIR)/langc
 
