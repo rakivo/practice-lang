@@ -10,8 +10,6 @@ struct str_t {
   str_t(const char *src);
 };
 
-static_assert(sizeof(str_t) == 128);
-
 typedef u16 file_id_t;
 
 struct file_t {

@@ -9,7 +9,7 @@ CC := clang++
 
 WARN_FLAGS := -Wall -Wextra -Wpedantic -Wno-c99-designator -Wswitch-enum
 INCLUDE_FLAGS := -I./$(INCLUDE_DIR)
-CFLAGS := -std=c++17 -O0 -g
+CFLAGS := -std=c++11 -O0 -g
 
 all: $(BUILD_DIR)/langc
 

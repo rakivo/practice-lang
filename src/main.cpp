@@ -1,5 +1,3 @@
-#define FLAG_IMPLEMENTATION
-#include "flag.hpp"
 #include "common.hpp"
 
 #include "ast.hpp"

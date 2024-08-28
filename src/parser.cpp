@@ -75,6 +75,7 @@ Parser::ast_token(const token_t &token)
       exit(1);
     }
 
+
     return ast;
   } break;
 

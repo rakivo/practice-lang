@@ -17,10 +17,10 @@ typedef uint8_t  u8;
 
 /* ----------------------------- */
 
-static_assert(sizeof(u64) == 8);
-static_assert(sizeof(u32) == 4);
-static_assert(sizeof(u16) == 2);
-static_assert(sizeof(u8)  == 1);
+static_assert(sizeof(u64) == 8, "unexpected sizeof(u64)");
+static_assert(sizeof(u32) == 4, "unexpected sizeof(u32)");
+static_assert(sizeof(u16) == 2, "unexpected sizeof(u16)");
+static_assert(sizeof(u8)  == 1, "unexpected sizeof(u8)");
 
 /* ----------------------------- */
 

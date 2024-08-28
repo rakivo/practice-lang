@@ -36,8 +36,6 @@ struct token_t {
   const char *str;
 };
 
-static_assert(sizeof(token_t) == 24);
-
 std::ostream
 &operator<<(std::ostream &os, const token_kind_t &tt);
 

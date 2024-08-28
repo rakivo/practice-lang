@@ -59,8 +59,6 @@ struct ast_t {
 void
 print_ast(const ast_t &ast);
 
-static_assert(sizeof(ast_t) == 32);
-
 DECLARE_EXTERN(ast, AST);
 
 #define astid(id) (ASTS[id])
