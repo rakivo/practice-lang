@@ -3,11 +3,11 @@ BUILD_DIR := build
 INCLUDE_DIR := include
 SRC_FILES := $(wildcard $(SRC_DIR)/*)
 ROOT_CPP_FILE := $(SRC_DIR)/main.cpp
-CPP_FILES := $(filter-out $(ROOT_CPP_FILE), $(wildcard $(SRC_DIR)/*.cpp))
+CPP_FILES := $(filter-out $(ROOT_CPP_FILE), $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/*.cpp))
 
 CC := clang++
 
-WARN_FLAGS := -Wall -Wextra -Wpedantic -Wno-c99-designator -Wswitch-enum
+WARN_FLAGS := -Wall -Wextra -Wpedantic -Wno-c99-designator -Wswitch-enum -Wno-c99-extensions -Wno-gnu-zero-variadic-macro-arguments -Wno-writable-strings -Wno-deprecated
 INCLUDE_FLAGS := -I./$(INCLUDE_DIR)
 CFLAGS := -std=c++11 -O0 -g
 

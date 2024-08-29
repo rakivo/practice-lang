@@ -1,5 +1,5 @@
 #include "ast.hpp"
-#include "common.hpp"
+#include "common.h"
 
 DECLARE_STATIC(ast, AST);
 
@@ -29,9 +29,10 @@ print_ast(const ast_t &ast)
     printf("else_body: %d\n", ast.if_stmt.else_body);
   } break;
 
-  case AST_DOT:   printf("AST_DOT\n"); break;
-  case AST_PLUS:  printf("AST_PLUS\n"); break;
-  case AST_EQUAL: printf("AST_EQUAL\n"); break;
+  case AST_DOT:      printf("AST_DOT\n");      break;
+  case AST_PLUS:     printf("AST_PLUS\n");     break;
+  case AST_EQUAL:    printf("AST_EQUAL\n");    break;
+  case AST_POISONED: printf("AST_POISONED\n"); break;
   }
 }
 
@@ -39,11 +40,12 @@ std::ostream
 &operator<<(std::ostream &os, const ast_kind_t &ast_kind)
 {
   switch (ast_kind) {
-  case AST_IF:    os << "AST_IF";    break;
-  case AST_PUSH:  os << "AST_PUSH";  break;
-  case AST_PLUS:  os << "AST_PLUS";  break;
-  case AST_DOT:   os << "AST_DOT";   break;
-  case AST_EQUAL: os << "AST_EQUAL"; break;
+  case AST_IF:       os << "AST_IF";       break;
+  case AST_POISONED: os << "AST_POISONED"; break;
+  case AST_PUSH:     os << "AST_PUSH";     break;
+  case AST_PLUS:     os << "AST_PLUS";     break;
+  case AST_DOT:      os << "AST_DOT";      break;
+  case AST_EQUAL:    os << "AST_EQUAL";    break;
   }
   return os;
 }

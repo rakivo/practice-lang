@@ -1,5 +1,5 @@
+#include "common.h"
 #include "lexer.hpp"
-#include "common.hpp"
 
 #include <cctype>
 #include <string>
@@ -18,14 +18,15 @@ std::ostream
 &operator<<(std::ostream &os, const token_kind_t &token_kind)
 {
   switch (token_kind) {
-  case TOKEN_INTEGER:      os << "TOKEN_INTEGER";      break;
-  case TOKEN_LITERAL:      os << "TOKEN_LITERAL";      break;
-  case TOKEN_PLUS:         os << "TOKEN_PLUS";         break;
-  case TOKEN_KEYWORDS_END: os << "TOKEN_KEYWORDS_END"; break;
-  case TOKEN_EQUAL:        os << "TOKEN_EQUAL";        break;
-  case TOKEN_DOT:          os << "TOKEN_DOT";          break;
-  case TOKEN_IF:           os << "TOKEN_IF";           break;
-  case TOKEN_END:          os << "TOKEN_END";          break;
+  case TOKEN_INTEGER:        os << "TOKEN_INTEGER";        break;
+  case TOKEN_LITERAL:        os << "TOKEN_LITERAL";        break;
+  case TOKEN_STRING_LITERAL: os << "TOKEN_STRING_LITERAL"; break;
+  case TOKEN_PLUS:           os << "TOKEN_PLUS";           break;
+  case TOKEN_KEYWORDS_END:   os << "TOKEN_KEYWORDS_END";   break;
+  case TOKEN_EQUAL:          os << "TOKEN_EQUAL";          break;
+  case TOKEN_DOT:            os << "TOKEN_DOT";            break;
+  case TOKEN_IF:             os << "TOKEN_IF";             break;
+  case TOKEN_END:            os << "TOKEN_END";            break;
   }
   return os;
 }
@@ -80,9 +81,10 @@ Lexer::type_token(const std::string &str)
   if (std::isalpha(first)) return TOKEN_LITERAL;
 
   switch (first) {
-  case '.': return TOKEN_DOT;   break;
-  case '+': return TOKEN_PLUS;  break;
-  case '=': return TOKEN_EQUAL; break;
+  case '.': return TOKEN_DOT;            break;
+  case '+': return TOKEN_PLUS;           break;
+  case '=': return TOKEN_EQUAL;          break;
+  case '"': return TOKEN_STRING_LITERAL; break;
   }
 
   UNREACHABLE;
@@ -93,6 +95,21 @@ Lexer::lex_line(const sss_t &line, tokens_t &ret)
 {
   for (const auto &ss: line) {
     const auto type = type_token(ss.first);
+
+    if (type != TOKEN_STRING_LITERAL) {
+      token_t token = {
+        .loc = {
+          .row = this->row,
+          .col = ss.second,
+          .file_id = this->file_id
+        },
+        .type = type,
+        .str = ss.first.data(),
+      };
+
+      ret.emplace_back(std::move(token));
+      continue;
+    }
 
     token_t token = {
       .loc = {
@@ -110,8 +127,8 @@ Lexer::lex_line(const sss_t &line, tokens_t &ret)
 
 static size_t utf8_char_len(unsigned char c)
 {
-  if ((u32) c < 0x80) return 1;
-  if ((u32) c < 0x800) return 2;
+  if ((u32) c < 0x80)    return 1;
+  if ((u32) c < 0x800)   return 2;
   if ((u32) c < 0x10000) return 3;
   return 4;
 }
@@ -125,12 +142,21 @@ Lexer::split(const std::string &input, char delim)
   size_t s = 0;
   size_t e = 0;
 
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+
   while (e < input.size()) {
     char c = input[e];
-    if (c == delim) {
+
+    if (c == '\'' && !in_double_quote) {
+      in_single_quote = !in_single_quote;
+    } else if (c == '"' && !in_single_quote) {
+      in_double_quote = !in_double_quote;
+    } else if (c == delim && !in_single_quote && !in_double_quote) {
       if (s != e) ret.emplace_back(input.substr(s, e - s), s);
       s = e + 1;
     }
+
     e += utf8_char_len(c);
   }
 

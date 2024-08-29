@@ -1,7 +1,7 @@
 #pragma once
 
+#include "common.h"
 #include "file.hpp"
-#include "common.hpp"
 
 #include <vector>
 #include <cstdint>
@@ -15,11 +15,12 @@ enum token_kind_t {
   // Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.
   TOKEN_KEYWORDS_END,
 
-  TOKEN_INTEGER,
-  TOKEN_LITERAL,
   TOKEN_EQUAL,
   TOKEN_PLUS,
   TOKEN_DOT,
+  TOKEN_INTEGER,
+  TOKEN_LITERAL,
+  TOKEN_STRING_LITERAL,
 };
 
 #define KEYWORDS_SIZE TOKEN_KEYWORDS_END

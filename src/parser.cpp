@@ -1,5 +1,5 @@
 #include "ast.hpp"
-#include "common.hpp"
+#include "common.h"
 #include "lexer.hpp"
 #include "parser.hpp"
 
@@ -95,7 +95,18 @@ Parser::ast_token(const token_t &token)
     return ast;
   } break;
 
+  case TOKEN_STRING_LITERAL: {
+    ast_t ast = make_ast(0, ++next, AST_PUSH,
+      .push_stmt = {
+        .value_kind = VALUE_KIND_STRING,
+        .str = std::move(token.str),
+      }
+    );
+    return ast;
+  } break;
+
   case TOKEN_LITERAL: {
+    printf("%s\n", token.str);
     TODO("Handle literals");
   } break;
 

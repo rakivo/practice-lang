@@ -1,13 +1,28 @@
 #pragma once
 
-#include "common.hpp"
+#include "common.h"
 #include "file.hpp"
 
 #include <iostream>
 
+#define astid(id) (ASTS[id])
+#define asts_len (ASTS_SIZE)
+#define last_ast (ASTS[ASTS_SIZE - 1])
+#define append_ast(ast_) (ASTS[ast_.ast_id] = std::move(ast_))
+
+// Last argument represents stmt
+#define make_ast(file_id_, next_, ast_kind_, ...) { \
+  .file_id = file_id_, \
+  .ast_id = ASTS_SIZE++, \
+  .next = next_, \
+  .ast_kind = ast_kind_, \
+  __VA_ARGS__ \
+}
+
 typedef i16 ast_id_t;
 
 enum value_kind_t {
+  VALUE_KIND_POISONED,
   VALUE_KIND_INTEGER,
   VALUE_KIND_STRING,
 };
@@ -31,6 +46,7 @@ struct if_stmt_t {
 };
 
 enum ast_kind_t {
+  AST_POISONED,
   AST_IF,
   AST_DOT,
   AST_PUSH,
@@ -56,21 +72,7 @@ struct ast_t {
   };
 };
 
-void
-print_ast(const ast_t &ast);
-
 DECLARE_EXTERN(ast, AST);
 
-#define astid(id) (ASTS[id])
-#define asts_len (ASTS_SIZE)
-#define last_ast (ASTS[ASTS_SIZE - 1])
-#define append_ast(ast_) (ASTS[ast_.ast_id] = std::move(ast_))
-
-// Last argument represents stmt
-#define make_ast(file_id_, next_, ast_kind_, ...) { \
-  .file_id = file_id_, \
-  .ast_id = ASTS_SIZE++, \
-  .next = next_, \
-  .ast_kind = ast_kind_, \
-  __VA_ARGS__ \
-}
+void
+print_ast(const ast_t &ast);

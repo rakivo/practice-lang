@@ -1,5 +1,6 @@
-#include "common.hpp"
+#include "common.h"
 
+#include "lib.h"
 #include "ast.hpp"
 #include "file.hpp"
 #include "lexer.hpp"
@@ -37,19 +38,21 @@ main(int argc, const char *argv[])
     lines.emplace_back(Lexer::split(line, ' '));
   }
 
-  file.close();
+  memory_init(1024ul * 10);
 
   Lexer lexer(file_.file_id, lines);
   tokens_t tokens = lexer.lex();
 
+  // for (const auto &token: tokens) std::cout << token << std::endl;
+
   Parser parser(tokens);
   parser.parse();
 
-  // for (const auto &token: tokens) std::cout << token << std::endl;
   // for (size_t i = 0; i < (size_t) ASTS_SIZE; ++i) print_ast(astid(i));
 
   Compiler compiler(0);
   compiler.compile();
 
+  file.close();
   return 0;
 }

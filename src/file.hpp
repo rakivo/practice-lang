@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.hpp"
+#include "common.h"
 
 struct str_t {
   u32 len;

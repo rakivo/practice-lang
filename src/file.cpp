@@ -1,5 +1,5 @@
 #include "file.hpp"
-#include "common.hpp"
+#include "common.h"
 
 #include <cstring>
 
@@ -12,7 +12,7 @@ str_t::str_t(void)
 str_t::str_t(const char *src)
   : len(strlen(src))
 {
-  ASSERT(strlen(src) <= 124);
+  ASSERT(strlen(src) <= 124, "String is too big BRUH");
   strncpy((char *) this->buf, src, sizeof(this->buf));
 }
 
