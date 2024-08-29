@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COMMON_H_
+#define COMMON_H_
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -13,23 +14,9 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
-/* ----------------------------- */
-
-static_assert(sizeof(u64) == 8, "unexpected sizeof(u64)");
-static_assert(sizeof(u32) == 4, "unexpected sizeof(u32)");
-static_assert(sizeof(u16) == 2, "unexpected sizeof(u16)");
-static_assert(sizeof(u8)  == 1, "unexpected sizeof(u8)");
-
-/* ----------------------------- */
-
-#define DECLARE_EXTERN(lower, upper) \
-  const u64 upper##S_CAP = 1024; \
-  extern lower##_t upper##S[upper##S_CAP]; \
-  extern lower##_id_t upper##S_SIZE; \
-
 #define DECLARE_STATIC(lower, upper) \
-  lower##_t upper##S[upper##S_CAP]; \
-  lower##_id_t upper##S_SIZE = 0; \
+	lower##_t upper##S[upper##S_CAP]; \
+	lower##_id_t upper##S_SIZE = 0 \
 
 /* ------------------------------------------------------- */
 
@@ -89,38 +76,38 @@ static_assert(sizeof(u8)  == 1, "unexpected sizeof(u8)");
 #endif
 
 #if (defined(__GNUC__) && __GNUC__ >= 7) || defined(__clang__)
-  #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
-  #define UNUSED __attribute__((unused))
-  #define NORETURN __attribute__((noreturn))
-  #define INLINE __attribute__((always_inline)) static inline
+	#define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
+	#define UNUSED __attribute__((unused))
+	#define NORETURN __attribute__((noreturn))
+	#define INLINE __attribute__((always_inline)) static inline
 #elif defined(_MSC_VER)
-  #define INLINE static __forceinline
-  #define NORETURN __declspec(noreturn)
-  #define UNUSED
-  #define PACK(__Declaration__) __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
+	#define INLINE static __forceinline
+	#define NORETURN __declspec(noreturn)
+	#define UNUSED
+	#define PACK(__Declaration__) __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
 #else
-  #define PACK(__Declaration__) __Declaration__
-  #define INLINE static inline
-  #define FALLTHROUGH ((void)0 )
-  #define UNUSED
-  #define NORETURN
+	#define PACK(__Declaration__) __Declaration__
+	#define INLINE static inline
+	#define FALLTHROUGH ((void)0 )
+	#define UNUSED
+	#define NORETURN
 #endif
 
 #define INFO_LOG(_string, ...) \
-  do {                          \
+	do {                          \
 	if (!debug_log) break; \
 	printf("-- INFO: "); printf(_string, ##__VA_ARGS__); printf("\n"); \
-  } while (0)
+	} while (0)
 #ifdef NDEBUG
 #define REMINDER(_string, ...) do {} while (0)
 #define DEBUG_LOG(_string, ...) do {} while(0)
 #else
 #define REMINDER(_string, ...) do { if (!debug_log) break; printf("TODO: %s -> in %s @ %s:%d\n", _string, __func__, __FILE__, __LINE__ , ##__VA_ARGS__); } while(0)
 #define DEBUG_LOG(_string, ...) \
-  do {                          \
+	do {                          \
 	if (!debug_log) break; \
 	printf("-- DEBUG: "); printf(_string, ##__VA_ARGS__); printf("\n"); \
-  } while (0)
+	} while (0)
 #endif
 
 #define FATAL_ERROR(_string, ...) do { error_exit("FATAL ERROR %s -> in %s @ in %s:%d ", _string, __func__, __FILE__, __LINE__, ##__VA_ARGS__); } while(0)
@@ -136,14 +123,16 @@ static_assert(sizeof(u8)  == 1, "unexpected sizeof(u8)");
 #define TEST_ASSERTF(condition_, string_, ...) while (!(condition_)) { char* str_ = str_printf(string_, __VA_ARGS__); FATAL_ERROR(str_); }
 
 #define EXPECT(_string, _value, _expected)                                     \
-  do {                                                                         \
-    long long __tempval1 = _value;                                             \
-    long long __tempval2 = _expected;                                          \
-    TEST_ASSERT(__tempval1 == __tempval2,                                      \
-                "Checking " _string ": expected %lld but was %lld.",           \
-                __tempval2, __tempval1);                                       \
-  } while (0)
+	do {                                                                         \
+		long long __tempval1 = _value;                                             \
+		long long __tempval2 = _expected;                                          \
+		TEST_ASSERT(__tempval1 == __tempval2,                                      \
+								"Checking " _string ": expected %lld but was %lld.",           \
+								__tempval2, __tempval1);                                       \
+	} while (0)
 
 void eprintf(const char *format, ...);
 void evprintf(const char *format, va_list list);
 NORETURN void error_exit(const char *format, ...) ;
+
+#endif // COMMON_H_

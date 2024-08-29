@@ -5,6 +5,7 @@
 
 #include "vmem.h"
 
+#include <stdio.h>
 #include <assert.h>
 
 #if PLATFORM_POSIX

@@ -1,13 +1,11 @@
 #include "lib.h"
-#include "ast.hpp"
+#include "ast.h"
 #include "common.h"
-#include "compiler.hpp"
+#include "compiler.h"
 
-#include <cstdio>
-#include <cstdlib>
-
-#include <cstring>
-#include <fstream>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 /*
   In r15 you always have an updated pointer to the top of the stack.
@@ -15,9 +13,12 @@
 
 #define TAB "  "
 
-#define wln(...) (stream << __VA_ARGS__ << std::endl)
-#define wtln(...) wln(TAB << __VA_ARGS__)
+#define wtln(...) fprintf(stream, TAB __VA_ARGS__ "\n")
+#define wtprintln(fmt, ...) fprintf(stream, TAB fmt "\n", __VA_ARGS__)
+#define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
+#define wln(...) fprintf(stream, __VA_ARGS__ "\n")
 
+static FILE *stream = NULL;
 static size_t jump_label_counter = 0;
 static size_t if_else_label_counter = 0;
 static size_t string_literal_counter = 0;
@@ -50,41 +51,45 @@ INLINE void scratch_buffer_genstrlen_offset(i32 offset)
 }
 
 static void
-compile_ast(const ast_t &ast, std::ofstream &stream)
+compile_ast(const ast_t *ast)
 {
-  wtln("; -- " << ast.ast_kind << " --");
-  switch (ast.ast_kind) {
+  wprintln("; -- %s --", ast_kind_to_str(ast->ast_kind));
+  switch (ast->ast_kind) {
   case AST_IF: {
     wtln("sub r15, WORD_SIZE");
     wtln("mov rax, [r15]");
 
-    if (!ast.if_stmt.then_body) return;
+    if (!ast->if_stmt.then_body) return;
 
     wtln("test rax, rax");
-    wtln("jz ._else_" << if_else_label_counter);
+    wtprintln("jz ._else_%zu", if_else_label_counter);
 
-    auto if_ast = astid(ast.if_stmt.then_body);
+    ast_t if_ast = astid(ast->if_stmt.then_body);
     while (if_ast.next && if_ast.next < ASTS_SIZE) {
-      compile_ast(if_ast, stream);
+      compile_ast(&if_ast);
       if_ast = astid(if_ast.next);
     }
 
-    wln("._else_" << if_else_label_counter << ":");
+    wprintln("._else_%zu:", if_else_label_counter);
 
     if_else_label_counter++;
   } break;
 
   case AST_PUSH: {
-    if (ast.push_stmt.value_kind == VALUE_KIND_INTEGER) {
+    switch (ast->push_stmt.value_kind) {
+    case VALUE_KIND_INTEGER: {
       last_value_kind = VALUE_KIND_INTEGER;
-      wtln("mov qword [r15], 0x" << std::hex << ast.push_stmt.integer);
-    } else if (ast.push_stmt.value_kind == VALUE_KIND_STRING) {
+      wtprintln("mov qword [r15], 0x%lX", ast->push_stmt.integer);
+    } break;
+
+    case VALUE_KIND_STRING: {
       last_value_kind = VALUE_KIND_STRING;
       scratch_buffer_genstrlen();
-      wtln("mov qword [r15], " << scratch_buffer_to_string());
+      wtprintln("mov qword [r15], %s", scratch_buffer_to_string());
       string_literal_counter++;
-    } else {
-      TODO
+    } break;
+
+    case VALUE_KIND_POISONED: UNREACHABLE;
     }
 
     wtln("add r15, WORD_SIZE");
@@ -103,12 +108,12 @@ compile_ast(const ast_t &ast, std::ofstream &stream)
     wtln("mov rbx, qword [r15 - WORD_SIZE * 2]");
     wtln("cmp rax, rbx");
 
-    wtln("jne ._jne_" << jump_label_counter);
+    wtprintln("jne ._jne_%zu", jump_label_counter);
     wtln("mov qword [r15], 0x1");
-    wtln("jmp ._done_" << jump_label_counter);
-    wln("._jne_" << jump_label_counter <<  ":");
+    wtprintln("jmp ._done_%zu", jump_label_counter);
+    wprintln("._jne_%zu:", jump_label_counter);
     wtln("mov qword [r15], 0x0");
-    wln("._done_" << jump_label_counter << ":");
+    wprintln("._done_%zu", jump_label_counter);
     wtln("add r15, WORD_SIZE");
 
     jump_label_counter++;
@@ -127,10 +132,10 @@ compile_ast(const ast_t &ast, std::ofstream &stream)
       wtln("mov rdi, SYS_STDOUT");
 
       scratch_buffer_genstr_offset(-1);
-      wtln("mov rsi, " << scratch_buffer_to_string());
+      wtprintln("mov rsi, %s", scratch_buffer_to_string());
 
       scratch_buffer_genstrlen_offset(-1);
-      wtln("mov rdx, " << scratch_buffer_to_string());
+      wtprintln("mov rdx, %s", scratch_buffer_to_string());
       wtln("syscall");
     } break;
 
@@ -143,19 +148,19 @@ compile_ast(const ast_t &ast, std::ofstream &stream)
 }
 
 static void
-print_defines(std::ofstream &stream)
+print_defines(void)
 {
-  wln("%define MEMORY_CAP 8 * 1024");
-  wln("%define STACK_CAP  1024");
-  wln("%define WORD_SIZE  8");
-  wln("%define NEW_LINE   10");
-  wln("%define SYS_WRITE  1");
-  wln("%define SYS_STDOUT 1");
-  wln("%define SYS_EXIT   60");
+  wln("%%define MEMORY_CAP 8 * 1024");
+  wln("%%define STACK_CAP  1024");
+  wln("%%define WORD_SIZE  8");
+  wln("%%define NEW_LINE   10");
+  wln("%%define SYS_WRITE  1");
+  wln("%%define SYS_STDOUT 1");
+  wln("%%define SYS_EXIT   60");
 }
 
 static void
-print_dmp_i64(std::ofstream &stream)
+print_dmp_i64(void)
 {
   wln("; r14b: newline");
   wln("; rax: number to print");
@@ -271,20 +276,20 @@ print_dmp_i64(std::ofstream &stream)
 }
 
 static void
-print_exit(std::ofstream &stream, u8 code)
+print_exit(u8 code)
 {
   wtln("mov rax, SYS_EXIT");
 
   if (0 == code)
     wtln("xor rdi, rdi");
   else
-    wtln("mov rdi, " << std::hex << code);
+    wtprintln("mov rdi, %X", code);
 
   wtln("syscall");
 }
 
 static void
-print_data_section(std::ofstream &stream)
+print_data_section(void)
 {
   wln("section .data");
   wln("stack_ptr dq stack_buf");
@@ -292,43 +297,52 @@ print_data_section(std::ofstream &stream)
 }
 
 static void
-print_bss_section(std::ofstream &stream)
+print_bss_section(void)
 {
   wln("section .bss");
   wln("memory_buf resb MEMORY_CAP");
   wln("stack_buf resq STACK_CAP");
 }
 
-void
-Compiler::compile(void)
+Compiler
+new_compiler(ast_id_t ast_cur)
 {
-  std::ofstream stream(this->output_file_path.buf);
-  if (!stream) {
-    eprintf("Failed to create file: %s", this->output_file_path.buf);
-    exit(1);
+	return (Compiler) {
+		.ast_cur = ast_cur,
+		.output_file_path = "out.asm",
+	};
+}
+
+void
+compiler_compile(Compiler *compiler)
+{
+	stream = fopen(compiler->output_file_path, "w");
+  if (stream == NULL) {
+    eprintf("ERROR: Failed to open file: %s", compiler->output_file_path);
+    exit(EXIT_FAILURE);
   }
 
   wln("BITS 64");
-  print_defines(stream);
+  print_defines();
   wln("section .text");
-  print_dmp_i64(stream);
+  print_dmp_i64();
   wln("global _start");
   wln("_start:");
 
   wtln("mov r15, qword [stack_ptr]");
 
-  ast_t ast = astid(this->ast_cur);
+  ast_t ast = astid(compiler->ast_cur);
   while (ast.next && ast.next <= ASTS_SIZE) {
-    compile_ast(ast, stream);
+    compile_ast(&ast);
     ast = astid(ast.next);
   }
 
-  print_exit(stream, 0);
-  print_data_section(stream);
+  print_exit(0);
+  print_data_section();
 
   string_literal_counter = 0;
 
-  ast = astid(this->ast_cur);
+  ast = astid(compiler->ast_cur);
   while (ast.next && ast.next <= ASTS_SIZE) {
     if (ast.ast_kind == AST_PUSH && ast.push_stmt.value_kind == VALUE_KIND_STRING) {
       scratch_buffer_clear();
@@ -344,20 +358,20 @@ Compiler::compile(void)
         scratch_buffer.str[len - 3] = '"';
         scratch_buffer.str[len - 2] = '\0';
 
-        wln(strdb << " db " << scratch_buffer_to_string() << ", NEW_LINE");
+        wprintln("%s db %s, NEW_LINE", strdb, scratch_buffer_to_string());
       } else {
-        wln(strdb << " db " << ast.push_stmt.str);
+        wprintln("%s db %s", strdb, ast.push_stmt.str);
       }
 
       scratch_buffer_genstrlen();
-      wln(scratch_buffer_to_string() << " equ $ - " << strdb);
+      wprintln("%s equ $ - %s", scratch_buffer_to_string(), strdb);
       string_literal_counter++;
     }
 
     ast = astid(ast.next);
   }
 
-  print_bss_section(stream);
+  print_bss_section();
 
-  stream.close();
+	fclose(stream);
 }

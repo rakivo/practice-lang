@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #define KB 1024ul
 // Use 1MB at a time.
@@ -27,12 +28,11 @@ void memory_init(size_t max_mem)
 	vmem_alloc(&arena, 16);
 }
 
-void memory_release()
+void memory_release(void)
 {
 	vmem_free(&arena);
 	vmem_free(&char_arena);
 }
-
 
 void *calloc_string(size_t len)
 {
@@ -63,7 +63,6 @@ void free_arena(void)
 {
 	vmem_free(&arena);
 }
-
 
 void run_arena_allocator_tests(void)
 {

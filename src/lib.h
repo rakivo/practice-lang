@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #if PLATFORM_WINDOWS
 #include "direct.h"
@@ -87,7 +88,7 @@ bool file_touch(const char *path);
 char *file_read_binary(const char *path, size_t *size);
 char *file_read_all(const char *path, size_t *return_size);
 void file_get_dir_and_filename_from_full(const char *full_path, char **filename, char **dir_path);
-void file_find_top_dir();
+void file_find_top_dir(void);
 bool file_has_suffix_in_list(const char *file_name, int name_len, const char **suffix_list, int suffix_count);
 void file_add_wildcard_files(const char ***files, const char *path, bool recursive, const char **suffix_list, int suffix_count);
 const char *file_append_path(const char *path, const char *name);
@@ -98,7 +99,7 @@ bool execute_cmd_failable(const char *cmd, const char **result, const char *stdi
 void *cmalloc(size_t size);
 void *ccalloc(size_t size, size_t elements);
 void memory_init(size_t max_mem);
-void memory_release();
+void memory_release(void);
 
 #define ptrid(ptr_) ((((uintptr_t)(ptr_)) - arena_zero) / 16)
 #define idptr(id_) ((void*)(((uintptr_t)id_) * 16 + arena_zero))
@@ -229,7 +230,6 @@ static inline void vec_erase_ptr_at(void *vec, unsigned i);
 #define CALLOCS(type) calloc_arena(sizeof(type))
 #endif
 
-
 #define FNV1_PRIME 0x01000193u
 #define FNV1_SEED 0x811C9DC5u
 #define FNV1a(c, seed) ((uint32_t)((((unsigned)(c)) ^ (seed)) * FNV1_PRIME))
@@ -259,7 +259,6 @@ static inline VHeader_* vec_new_(size_t element_size, size_t capacity)
 	header->capacity = (uint32_t)capacity;
 	return header;
 }
-
 
 static inline void vec_resize(void *vec, uint32_t new_size)
 {

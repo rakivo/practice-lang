@@ -2,19 +2,23 @@ SRC_DIR := src
 BUILD_DIR := build
 INCLUDE_DIR := include
 SRC_FILES := $(wildcard $(SRC_DIR)/*)
-ROOT_CPP_FILE := $(SRC_DIR)/main.cpp
-CPP_FILES := $(filter-out $(ROOT_CPP_FILE), $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/*.cpp))
+ROOT_FILE := $(SRC_DIR)/main.c
+C_FILES := $(filter-out $(ROOT_FILE), $(wildcard $(SRC_DIR)/*.c))
+OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_FILES))
 
-CC := clang++
+CC := clang
 
-WARN_FLAGS := -Wall -Wextra -Wpedantic -Wno-c99-designator -Wswitch-enum -Wno-c99-extensions -Wno-gnu-zero-variadic-macro-arguments -Wno-writable-strings -Wno-deprecated
+WARN_FLAGS := -Wall -Wextra -Wpedantic -Wswitch-enum -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-folding-constant -Wno-gnu-empty-struct -Wno-excess-initializers -Wno-unsequenced
 INCLUDE_FLAGS := -I./$(INCLUDE_DIR)
-CFLAGS := -std=c++11 -O0 -g
+CFLAGS := -std=c11 -O0 -g -fcommon
 
 all: $(BUILD_DIR)/langc
 
 $(BUILD_DIR):
 	mkdir -p $@
 
-$(BUILD_DIR)/langc: $(ROOT_CPP_FILE) $(SRC_FILES) $(BUILD_DIR)
-	$(CC) -o $@ $(CFLAGS) $(INCLUDE_FLAGS) $(WARN_FLAGS) $< $(CPP_FILES)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) $(WARN_FLAGS) -c $< -o $@
+
+$(BUILD_DIR)/langc: $(ROOT_FILE) $(OBJ_FILES) $(BUILD_DIR)
+	$(CC) -o $@ $(CFLAGS) $(INCLUDE_FLAGS) $(WARN_FLAGS) $(OBJ_FILES) $<
