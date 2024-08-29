@@ -45,6 +45,7 @@ main(int argc, const char *argv[])
   Parser parser(tokens);
   parser.parse();
 
+  // for (const auto &token: tokens) std::cout << token << std::endl;
   // for (size_t i = 0; i < (size_t) ASTS_SIZE; ++i) print_ast(astid(i));
 
   Compiler compiler(0);

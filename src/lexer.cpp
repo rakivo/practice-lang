@@ -40,7 +40,7 @@ std::ostream
 std::ostream
 &operator<<(std::ostream &os, const token_t &token)
 {
-  os << token.loc << ": '" << token.str << "': " << token.type;
+  os << token.loc << " '" << token.str << "': " << token.type;
   return os;
 }
 
@@ -50,9 +50,9 @@ Lexer::lex(void)
   tokens_t ret = {};
   ret.reserve(this->lines.size());
 
-  while (this->row < this->lines.size()) {
-    const auto line = this->lines[this->row];
+  for (const auto &line: this->lines) {
     this->lex_line(line, ret);
+    this->row++;
   }
 
   return ret;
@@ -101,30 +101,40 @@ Lexer::lex_line(const sss_t &line, tokens_t &ret)
         .file_id = this->file_id
       },
       .type = type,
-      .str = std::move(ss.first.data()),
+      .str = ss.first.data(),
     };
 
     ret.emplace_back(std::move(token));
   }
+}
 
-  this->row++;
+static size_t utf8_char_len(unsigned char c)
+{
+  if ((u32) c < 0x80) return 1;
+  if ((u32) c < 0x800) return 2;
+  if ((u32) c < 0x10000) return 3;
+  return 4;
 }
 
 sss_t
 Lexer::split(const std::string &input, char delim)
 {
-  sss_t ret = {};
-  ret.reserve(input.size() / 2);
+  sss_t ret;
+  ret.reserve(input.size());
 
   size_t s = 0;
   size_t e = 0;
 
   while (e < input.size()) {
-    while (e < input.size() && input[e] == delim) ++e;
-    s = e;
-    while (e < input.size() && input[e] != delim) ++e;
-    if (s < e) ret.emplace_back(input.substr(s, e - s), s);
+    char c = input[e];
+    if (c == delim) {
+      if (s != e) ret.emplace_back(input.substr(s, e - s), s);
+      s = e + 1;
+    }
+    e += utf8_char_len(c);
   }
+
+  if (s < e) ret.emplace_back(input.substr(s, e - s), s);
 
   return ret;
 }

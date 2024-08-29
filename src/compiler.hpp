@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "file.hpp"
 
 struct Compiler {
   ast_id_t ast_cur;
