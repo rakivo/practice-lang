@@ -9,6 +9,7 @@
 
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF] = "if",
+	[TOKEN_ELSE] = "else",
 	[TOKEN_END] = "end"
 };
 
@@ -24,6 +25,7 @@ token_kind_to_str(const token_kind_t token_kind)
 	case TOKEN_EQUAL:          return "TOKEN_EQUAL";          break;
 	case TOKEN_DOT:            return "TOKEN_DOT";            break;
 	case TOKEN_IF:             return "TOKEN_IF";             break;
+	case TOKEN_ELSE:					 return "TOKEN_ELSE";						break;
 	case TOKEN_END:            return "TOKEN_END";            break;
 	}
 }
@@ -33,10 +35,11 @@ loc_to_str(const loc_t *loc)
 {
 	const str_t file_path = fileid(loc->file_id).file_path;
 	const size_t len = file_path.len
-		+ 32 * 2 // two 32bit integers
-		+ 3;     // 3 colons
+		+ 11 * 2 // two 32bit integers
+		+ 3      // 3 colons
+		+ 1;		 // \0
 
-	char *ret = calloc_string(len + 1);
+	char *ret = calloc_string(len);
 	snprintf(ret, len,
 					 "%s:%d:%d:",
 					 file_path.buf,
@@ -52,10 +55,9 @@ token_to_str(const token_t *token)
 	const char *token_loc = loc_to_str(&token->loc);
 	const char *token_kind = token_kind_to_str(token->kind);
 	const size_t len = strlen(token_loc) + strlen(token_kind) + strlen(token->str)
-		+ 1  // space
+		+ 2  // 2 spaces
 		+ 2  // two quotes
 		+ 1  // colon
-		+ 1  // space
 		+ 1; // \0
 
 	char *ret = calloc_string(len);
@@ -150,53 +152,70 @@ static size_t utf8_char_len(unsigned char c)
 }
 
 sss_t
-split(const char *input, char delim)
+split(char *input, char delim)
 {
+	const size_t len_ = strlen(input);
+	if (len_ > 0 && input[len_ - 1] == '\n') {
+		input[len_ - 1] = '\0';
+	}
+
+	size_t lspace_count = 0;
+	while (isspace((unsigned char) *input)) {
+		input++;
+		lspace_count++;
+	}
+
 	const size_t len = strlen(input);
+
 	sss_t ret = NULL;
 
 	size_t s = 0;
 	size_t e = 0;
+	size_t i = 0;
 
 	bool in_single_quote = false;
 	bool in_double_quote = false;
 
-	while (e < len) {
-		char c = input[e];
+	for (; i < len; ++i) {
+		char c = input[i];
 
 		if (c == '\'' && !in_double_quote) {
 			in_single_quote = !in_single_quote;
 		} else if (c == '"' && !in_single_quote) {
 			in_double_quote = !in_double_quote;
 		} else if (c == delim && !in_single_quote && !in_double_quote) {
-			if (s != e) {
+			if (s != i) {
 				scratch_buffer_clear();
-				for (size_t i = s; i < e - s; ++i) {
-					scratch_buffer_append_char(input[i]);
+				for (size_t i_ = s; i_ < i; ++i_) {
+					scratch_buffer_append_char(input[i_]);
 				}
-				const ss_t ss = (ss_t) {
-					.col = s,
+				vec_add(ret, (ss_t) {
+					.col = s + lspace_count,
 					.str = scratch_buffer_copy(),
-				};
-				vec_add(ret, ss);
+				});
+				s = i + utf8_char_len(c);
+			} else {
+				e = i + utf8_char_len(c);
 			}
-			s = e + 1;
 		}
-
-		e += utf8_char_len(c);
 	}
 
-	if (s < e) {
+	if (s + e == 0 && i > 0) {
 		scratch_buffer_clear();
-		for (size_t i = s; i < e; ++i) {
+		scratch_buffer_append(input);
+		vec_add(ret, (ss_t) {
+			.col = s + lspace_count,
+			.str = scratch_buffer_copy(),
+		});
+	} else if (s != e) {
+		scratch_buffer_clear();
+		for (size_t i = s; i < len; ++i) {
 			scratch_buffer_append_char(input[i]);
 		}
-
-		const ss_t ss = (ss_t) {
-			.col = s,
+		vec_add(ret, (ss_t) {
+			.col = s + lspace_count,
 			.str = scratch_buffer_copy(),
-		};
-		vec_add(ret, ss);
+		});
 	}
 
 	return ret;

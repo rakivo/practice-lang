@@ -24,7 +24,7 @@ void memory_init(size_t max_mem)
 	vmem_init(&arena, 2048);
 	vmem_init(&char_arena, 512);
 	allocations_done = 0;
-	arena_zero = (uintptr_t)arena.ptr;
+	arena_zero = (uintptr_t) arena.ptr;
 	vmem_alloc(&arena, 16);
 }
 

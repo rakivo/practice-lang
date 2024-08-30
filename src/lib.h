@@ -334,10 +334,10 @@ uint32_t idx__ = 0; \
 for (type__ name__ ; idx__ < CONCAT(foreach_vecsize_, __LINE__) ? (name__ = CONCAT(foreach_vec_, __LINE__)[idx__], true) : false; idx__++)
 
 #define VECNEW(_type, _capacity) ((_type *)(vec_new_(sizeof(_type), _capacity) + 1))
-#define vec_add(vec_, value_) do { \
+#define vec_add(vec_, ...) do { \
 	void *__temp = expand_((vec_), sizeof(*(vec_))); \
 	(vec_) = __temp;           \
-	(vec_)[vec_size(vec_) - 1] = value_; \
+	(vec_)[vec_size(vec_) - 1] = __VA_ARGS__; \
  } while (0)
 
 #define vec_insert_first(vec_, value_) do { \

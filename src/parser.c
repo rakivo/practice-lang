@@ -47,22 +47,35 @@ ast_token(Parser *parser, const token_t *token)
 
 		ast_t ast = make_ast(0, ++next, AST_IF,
 			.if_stmt = {
-				.then_body = next,
+				.then_body = -1,
 				.else_body = -1,
 			}
 		);
 
 		bool done = false;
+		bool is_else = false;
+		size_t token_count = 0;
 		while (!done && token_idx < vec_size(parser->ts)) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
 				break;
+			} else if (token_.kind == TOKEN_ELSE) {
+				if (asts_len > 0 && token_count > 0) {
+					last_ast.next = -1;
+				}
+				is_else = true;
+				token_idx++;
+				ast.if_stmt.else_body = next;
+				continue;
+			} else if (token_count == 0 && !is_else) {
+				ast.if_stmt.then_body = next;
 			}
 
 			token_idx++;
 			const ast_t ast = ast_token(parser, &token_);
 			append_ast(ast);
+			token_count++;
 		}
 
 		ast.next = last_ast.next;
@@ -78,6 +91,7 @@ ast_token(Parser *parser, const token_t *token)
 		return ast;
 	} break;
 
+	case TOKEN_ELSE:
 	case TOKEN_END: {
 		UNREACHABLE;
 	} break;

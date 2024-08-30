@@ -10,6 +10,7 @@
 
 typedef enum {
 	TOKEN_IF,
+	TOKEN_ELSE,
 	TOKEN_END,
 
 	// Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.
@@ -69,7 +70,7 @@ tokens_t
 lexer_lex(Lexer *lexer);
 
 sss_t
-split(const char *input, char delim);
+split(char *input, char delim);
 
 token_kind_t
 type_token(const char *str);
