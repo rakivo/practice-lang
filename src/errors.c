@@ -2,8 +2,9 @@
 // Use of this source code is governed by the GNU LGPLv3.0 license
 // a copy of which can be found in the LICENSE file.
 
-#include "common.h"
 #include "lib.h"
+#include "common.h"
+
 #include <stdarg.h>
 
 void evprintf(const char *format, va_list list)
@@ -17,6 +18,19 @@ void eprintf(const char *format, ...)
 	va_start(arglist, format);
 	vfprintf(stderr, format, arglist);
 	va_end(arglist);
+}
+
+NORETURN void report_error_(const char *func, const char *file,
+														const size_t line, const char *format, ...)
+{
+	eprintf("%s:%d: in %s(...)\n", file, line, func);
+	va_list arglist;
+	va_start(arglist, format);
+	vfprintf(stderr, format, arglist);
+	fprintf(stderr, "\n");
+	va_end(arglist);
+	memory_release();
+	exit(EXIT_FAILURE);
 }
 
 NORETURN void error_exit(const char *format, ...)

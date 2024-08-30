@@ -13,16 +13,38 @@
 
 #define TAB "  "
 
-#define wtln(...) fprintf(stream, TAB __VA_ARGS__ "\n")
-#define wtprintln(fmt, ...) fprintf(stream, TAB fmt "\n", __VA_ARGS__)
-#define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
 #define wln(...) fprintf(stream, __VA_ARGS__ "\n")
+#define wtln(...) wln(TAB __VA_ARGS__)
+#define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
+#define wtprintln(fmt, ...) fprintf(stream, TAB fmt "\n", __VA_ARGS__)
+
+#define FASM
+
+#ifdef FASM
+	#define DEFINE "define"
+	#define GLOBAL "public"
+	#define COMPTIME_EQU "="
+	#define RESERVE_QUAD "rq"
+	#define FORMAT_64BIT "format ELF64"
+	#define SECTION_BSS_WRITEABLE "section '.bss' writeable"
+	#define SECTION_DATA_WRITEABLE "section '.data' writeable"
+	#define SECTION_TEXT_EXECUTABLE "section '.text' executable"
+#else
+	#define DEFINE "%%define"
+	#define GLOBAL "global"
+	#define COMPTIME_EQU "equ"
+	#define RESERVE_QUAD "resq"
+	#define FORMAT_64BIT "BITS 64"
+	#define SECTION_BSS_WRITEABLE "section .bss"
+	#define SECTION_DATA_WRITEABLE "section .data"
+	#define SECTION_TEXT_EXECUTABLE "section .text"
+#endif // FASM
 
 static FILE *stream = NULL;
 static size_t stack_size = 0;
-static size_t jump_label_counter = 0;
-static size_t if_else_label_counter = 0;
+static size_t label_counter = 0;
 static size_t string_literal_counter = 0;
+static size_t equal_jne_label_counter = 0;
 static size_t last_integer_push_value = 0;
 static value_kind_t last_value_kind = VALUE_KIND_POISONED;
 
@@ -89,34 +111,37 @@ compile_ast(const ast_t *ast)
 	switch (ast->ast_kind) {
 	case AST_IF: {
 		if (stack_size < 1) {
-			printf("%s error: `if` with empty stack\n", loc_to_str(&locid(ast->loc_id)));
-			exit(1);
+			report_error("%s error: `if` with empty stack", loc_to_str(&locid(ast->loc_id)));
 		}
 
 		// If statement is empty
 		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
 
+		size_t curr_label = label_counter++;
+		size_t else_label = curr_label;
+		size_t done_label = curr_label + 1;
+
 		wtln("sub r15, WORD_SIZE");
 		wtln("mov rax, [r15]");
 
 		wtln("test rax, rax");
-		wtprintln("jz ._else_%zu", if_else_label_counter);
+		wtprintln("jz ._else_%zu", else_label);
 
 		ast_t if_ast = astid(ast->if_stmt.then_body);
 		if (ast->if_stmt.then_body >= 0) {
 			compile_block(if_ast);
-
-			wtprintln("jmp ._edon_%zu", if_else_label_counter);
-			wprintln("._else_%zu:", if_else_label_counter);
+			wtprintln("jmp ._edon_%zu", done_label);
 		}
+
+		wprintln("._else_%zu:", else_label);
 
 		if (ast->if_stmt.else_body >= 0) {
 			if_ast = astid(ast->if_stmt.else_body);
 			compile_block(if_ast);
 		}
 
-		wprintln("._edon_%zu:", if_else_label_counter);
-		if_else_label_counter++;
+		wprintln("._edon_%zu:", done_label);
+		label_counter++;
 	} break;
 
 	case AST_PUSH: {
@@ -168,15 +193,15 @@ compile_ast(const ast_t *ast)
 		wtln("mov rbx, qword [r15 - WORD_SIZE * 2]");
 		wtln("cmp rax, rbx");
 
-		wtprintln("jne ._jne_%zu", jump_label_counter);
+		wtprintln("jne ._jne_%zu", equal_jne_label_counter);
 		wtln("mov qword [r15], 0x1");
-		wtprintln("jmp ._done_%zu", jump_label_counter);
-		wprintln("._jne_%zu:", jump_label_counter);
+		wtprintln("jmp ._done_%zu", equal_jne_label_counter);
+		wprintln("._jne_%zu:", equal_jne_label_counter);
 		wtln("mov qword [r15], 0x0");
-		wprintln("._done_%zu:", jump_label_counter);
+		wprintln("._done_%zu:", equal_jne_label_counter);
 		wtln("add r15, WORD_SIZE");
 
-		jump_label_counter++;
+		equal_jne_label_counter++;
 	} break;
 
 	case AST_DOT: {
@@ -210,13 +235,13 @@ compile_ast(const ast_t *ast)
 static void
 print_defines(void)
 {
-	wln("%%define MEMORY_CAP 8 * 1024");
-	wln("%%define STACK_CAP  1024");
-	wln("%%define WORD_SIZE  8");
-	wln("%%define NEW_LINE   10");
-	wln("%%define SYS_WRITE  1");
-	wln("%%define SYS_STDOUT 1");
-	wln("%%define SYS_EXIT   60");
+	wln(DEFINE " MEMORY_CAP 8 * 1024");
+	wln(DEFINE " STACK_CAP  1024");
+	wln(DEFINE " WORD_SIZE  8");
+	wln(DEFINE " NEW_LINE   10");
+	wln(DEFINE " SYS_WRITE  1");
+	wln(DEFINE " SYS_STDOUT 1");
+	wln(DEFINE " SYS_EXIT   60");
 }
 
 static void
@@ -351,17 +376,15 @@ print_exit(u8 code)
 static void
 print_data_section(void)
 {
-	wln("section .data");
+	wln(SECTION_DATA_WRITEABLE);
 	wln("stack_ptr dq stack_buf");
-	wln("memory_ptr dq memory_buf");
 }
 
 static void
 print_bss_section(void)
 {
-	wln("section .bss");
-	wln("memory_buf resb MEMORY_CAP");
-	wln("stack_buf resq STACK_CAP");
+	wln(SECTION_BSS_WRITEABLE);
+	wln("stack_buf " RESERVE_QUAD " STACK_CAP");
 }
 
 Compiler
@@ -382,11 +405,13 @@ compiler_compile(Compiler *compiler)
 		exit(EXIT_FAILURE);
 	}
 
-	wln("BITS 64");
+	wln(FORMAT_64BIT);
+
 	print_defines();
-	wln("section .text");
+	wln(SECTION_TEXT_EXECUTABLE);
 	print_dmp_i64();
-	wln("global _start");
+
+	wln(GLOBAL " _start");
 	wln("_start:");
 
 	wtln("mov r15, qword [stack_ptr]");
@@ -397,7 +422,7 @@ compiler_compile(Compiler *compiler)
 		ast = astid(ast.next);
 	}
 
-	print_exit(0);
+	print_exit(EXIT_SUCCESS);
 	print_data_section();
 
 	string_literal_counter = 0;
@@ -424,7 +449,7 @@ compiler_compile(Compiler *compiler)
 			}
 
 			scratch_buffer_genstrlen();
-			wprintln("%s equ $ - %s", scratch_buffer_to_string(), strdb);
+			wprintln("%s " COMPTIME_EQU " $ - %s", scratch_buffer_to_string(), strdb);
 			string_literal_counter++;
 		}
 

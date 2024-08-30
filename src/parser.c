@@ -1,8 +1,8 @@
-#include "ast.h"
-#include "common.h"
-#include "lexer.h"
 #include "lib.h"
+#include "ast.h"
+#include "lexer.h"
 #include "parser.h"
+#include "common.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -37,20 +37,18 @@ parser_parse(Parser *parser)
 	}
 }
 
-static loc_id_t *if_locs = NULL;
 static bool done = false;
 static bool is_else = false;
-static size_t if_count = 1;
+static size_t if_count = 0;
 static size_t else_count = 0;
-static size_t end_count = 0;
-static size_t token_count = 0;
 
 ast_t
 ast_token(Parser *parser, const token_t *token)
 {
 	switch (token->kind) {
 	case TOKEN_IF: {
-		vec_add(if_locs, token->loc_id);
+		if_count++;
+
 		// Skip `if` keyword
 		token_idx++;
 
@@ -61,50 +59,24 @@ ast_token(Parser *parser, const token_t *token)
 			}
 		);
 
+		size_t token_count = 0;
+
 		while (!done && token_idx < vec_size(parser->ts)) {
 			const token_t token_ = parser->ts[token_idx];
-			if (token_.kind == TOKEN_IF) {
-				vec_add(if_locs, token_.loc_id);
-				token_idx++;
-				if_count++;
-			} else if (token_.kind == TOKEN_END) {
-				token_idx++;
-				end_count++;
-				if (end_count > if_count) {
-					printf("%s error: no matching `if` found\n", loc_to_str(&locid(token_.loc_id)));
-					exit(1);
-				}
+			if (token_.kind == TOKEN_END) {
+				break;
 			} else if (token_.kind == TOKEN_ELSE) {
-				else_count++;
-				if (if_count < else_count) {
-					printf("%s error: too many elses in one if\n", loc_to_str(&locid(token_.loc_id)));
-					exit(1);
+				if (if_count < ++else_count) {
+					report_error("%s error: too many elses in one if", loc_to_str(&locid(token_.loc_id)));
 				} else if (asts_len > 0 && token_count > 0) {
 					last_ast.next = -1;
 				}
-				is_else = true;
 				token_idx++;
+				is_else = true;
 				ast.if_stmt.else_body = next;
 				continue;
 			} else if (token_count == 0 && !is_else) {
 				ast.if_stmt.then_body = next;
-			}
-
-			// const ast_t ast = ast_token(parser, &token);
-			if (parser->ts[token_idx].kind == TOKEN_END) {
-				token_idx++;
-				end_count++;
-				if (if_count == end_count) {
-					done = true;
-					break;
-				} else if (end_count > if_count) {
-					printf("%s error: no matching `if` found\n", loc_to_str(&locid(token_.loc_id)));
-					exit(1);
-				}
-				continue;
-			} else if (if_count == end_count) {
-				done = true;
-				break;
 			}
 
 			const ast_t ast = ast_token(parser, &parser->ts[token_idx]);
@@ -122,28 +94,15 @@ ast_token(Parser *parser, const token_t *token)
 		// indicate the end of the body
 		last_ast.next = -1;
 
-		if (!done) {
-			printf("%s error: no matching end found\n", loc_to_str(&locid(if_locs[if_count])));
-			exit(1);
-		}
-
-		vec_resize(if_locs, 0);
-
-		if_count = 1;
-		else_count = 0;
-		end_count = 0;
-		token_count = 0;
-		done = false;
-		is_else = false;
-
 		return ast;
 	} break;
 
-	case TOKEN_ELSE:
-	case TOKEN_END: if (if_count == 1) {
+	case TOKEN_ELSE: {
+		printf("%s error: else outside of if scope\n", loc_to_str(&locid(token->loc_id)));
+	} break;
+
+	case TOKEN_END: {
 		printf("%s error: no matching if found\n", loc_to_str(&locid(token->loc_id)));
-	} else {
-		UNREACHABLE;
 	} break;
 
 	case TOKEN_KEYWORDS_END: break;

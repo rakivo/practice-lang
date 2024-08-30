@@ -2,6 +2,7 @@
 #define COMMON_H_
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 typedef int64_t i64;
@@ -17,6 +18,13 @@ typedef uint8_t  u8;
 #define DECLARE_STATIC(lower, upper) \
 	lower##_t upper##S[upper##S_CAP]; \
 	lower##_id_t upper##S_SIZE = 0 \
+
+// Report error, release memory and exit
+#ifdef DEBUG
+	#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
+#else
+	#define report_error(fmt, ...) eprintf(fmt "\n", __VA_ARGS__)
+#endif // DEBUG
 
 /* ------------------------------------------------------- */
 
@@ -133,6 +141,7 @@ typedef uint8_t  u8;
 
 void eprintf(const char *format, ...);
 void evprintf(const char *format, va_list list);
+NORETURN void report_error_(const char *func, const char *file, const size_t line, const char *format, ...);
 NORETURN void error_exit(const char *format, ...) ;
 
 #endif // COMMON_H_

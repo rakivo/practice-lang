@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define DEBUG 1
+
 int
 main(int argc, const char *argv[])
 {
@@ -37,6 +39,8 @@ main(int argc, const char *argv[])
 		vec_add(lines, split(line, ' '));
 	}
 
+	fclose(file);
+
 	Lexer lexer = new_lexer(file_.file_id, lines);
 	tokens_t tokens = lexer_lex(&lexer);
 
@@ -50,12 +54,10 @@ main(int argc, const char *argv[])
 	Compiler compiler = new_compiler(0);
 	compiler_compile(&compiler);
 
-	fclose(file);
 	memory_release();
 	return 0;
 }
 
 /* TODO:
-	#1. Add support for nested if-elses
 	#2. Implement proper system for error-reporting
 */
