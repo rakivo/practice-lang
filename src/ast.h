@@ -2,6 +2,7 @@
 #define AST_H_
 
 #include "file.h"
+#include "lexer.h"
 #include "common.h"
 
 #include <stdio.h>
@@ -12,8 +13,9 @@
 #define append_ast(ast_) (ASTS[ast_.ast_id] = ast_)
 
 // Last argument represents stmt
-#define make_ast(file_id_, next_, ast_kind_, ...) { \
+#define make_ast(file_id_, loc_id_, next_, ast_kind_, ...) {	\
 	.file_id = file_id_, \
+	.loc_id = loc_id_, \
 	.ast_id = ASTS_SIZE++, \
 	.next = next_, \
 	.ast_kind = ast_kind_, \
@@ -28,8 +30,12 @@ typedef enum {
 	VALUE_KIND_STRING,
 } value_kind_t;
 
-typedef struct {} dot_stmt_t;
 typedef struct {} plus_stmt_t;
+typedef struct {} minus_stmt_t;
+typedef struct {} div_stmt_t;
+typedef struct {} mul_stmt_t;
+
+typedef struct {} dot_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
@@ -51,12 +57,16 @@ typedef enum {
 	AST_IF,
 	AST_DOT,
 	AST_PUSH,
+	AST_MUL,
+	AST_DIV,
+	AST_MINUS,
 	AST_PLUS,
 	AST_EQUAL,
 } ast_kind_t;
 
 typedef struct {
 	file_id_t file_id;
+	loc_id_t loc_id;
 	ast_id_t ast_id;
 	ast_id_t next;
 	ast_kind_t ast_kind;
@@ -66,6 +76,9 @@ typedef struct {
 		dot_stmt_t dot_stmt;
 		plus_stmt_t plus_stmt;
 		push_stmt_t push_stmt;
+		minus_stmt_t minus_stmt;
+		div_stmt_t div_stmt;
+		mul_stmt_t mul_stmt;
 		equal_stmt_t equal_stmt;
 	};
 } ast_t;

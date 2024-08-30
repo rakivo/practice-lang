@@ -19,9 +19,11 @@
 #define wln(...) fprintf(stream, __VA_ARGS__ "\n")
 
 static FILE *stream = NULL;
+static size_t stack_size = 0;
 static size_t jump_label_counter = 0;
 static size_t if_else_label_counter = 0;
 static size_t string_literal_counter = 0;
+static size_t last_integer_push_value = 0;
 static value_kind_t last_value_kind = VALUE_KIND_POISONED;
 
 static void
@@ -67,12 +69,30 @@ INLINE void compile_block(ast_t ast)
 	}
 }
 
+INLINE void
+print_last_two(const char *r1, const char *r2)
+{
+	wtprintln("mov %s, qword [r15 - WORD_SIZE]", r1);
+	wtprintln("mov %s, qword [r15 - WORD_SIZE * 2]", r2);
+}
+
+// Perform binary operation with rax, rbx
+#define print_binop_and_mov_to_stack(op) \
+	print_last_two("rbx", "rax"); \
+	wtln(op); \
+	wtln("mov [r15 - WORD_SIZE * 2], rax");
+
 static void
 compile_ast(const ast_t *ast)
 {
 	wprintln("; -- %s --", ast_kind_to_str(ast->ast_kind));
 	switch (ast->ast_kind) {
 	case AST_IF: {
+		if (stack_size < 1) {
+			printf("%s error: `if` with empty stack\n", loc_to_str(&locid(ast->loc_id)));
+			exit(1);
+		}
+
 		// If statement is empty
 		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
 
@@ -103,6 +123,7 @@ compile_ast(const ast_t *ast)
 		switch (ast->push_stmt.value_kind) {
 		case VALUE_KIND_INTEGER: {
 			last_value_kind = VALUE_KIND_INTEGER;
+			last_integer_push_value = ast->push_stmt.integer;
 			wtprintln("mov qword [r15], 0x%lX", ast->push_stmt.integer);
 		} break;
 
@@ -116,14 +137,29 @@ compile_ast(const ast_t *ast)
 		case VALUE_KIND_POISONED: UNREACHABLE;
 		}
 
+		stack_size++;
 		wtln("add r15, WORD_SIZE");
 	} break;
 
 	case AST_PLUS: {
-		wtln("mov rax, qword [r15 - WORD_SIZE]");
-		wtln("mov rbx, qword [r15 - WORD_SIZE * 2]");
-		wtln("add rax, rbx");
-		wtln("mov [r15 - WORD_SIZE * 2], rax");
+		print_binop_and_mov_to_stack("add rax, rbx");
+		wtln("sub r15, WORD_SIZE");
+	} break;
+
+	case AST_MINUS: {
+		print_binop_and_mov_to_stack("sub rax, rbx");
+		wtln("sub r15, WORD_SIZE");
+	} break;
+
+	case AST_DIV: {
+		wtln("xor edx, edx");
+		print_binop_and_mov_to_stack("div rbx");
+		wtln("sub r15, WORD_SIZE");
+	} break;
+
+	case AST_MUL: {
+		wtln("xor edx, edx");
+		print_binop_and_mov_to_stack("mul rbx");
 		wtln("sub r15, WORD_SIZE");
 	} break;
 

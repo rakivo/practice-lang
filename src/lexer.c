@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+DECLARE_STATIC(loc, LOC);
+
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF] = "if",
 	[TOKEN_ELSE] = "else",
@@ -17,16 +19,19 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
-	case TOKEN_INTEGER:        return "TOKEN_INTEGER";        break;
-	case TOKEN_LITERAL:        return "TOKEN_LITERAL";        break;
-	case TOKEN_STRING_LITERAL: return "TOKEN_STRING_LITERAL"; break;
-	case TOKEN_PLUS:           return "TOKEN_PLUS";           break;
-	case TOKEN_KEYWORDS_END:   return "TOKEN_KEYWORDS_END";   break;
-	case TOKEN_EQUAL:          return "TOKEN_EQUAL";          break;
-	case TOKEN_DOT:            return "TOKEN_DOT";            break;
-	case TOKEN_IF:             return "TOKEN_IF";             break;
-	case TOKEN_ELSE:					 return "TOKEN_ELSE";						break;
-	case TOKEN_END:            return "TOKEN_END";            break;
+	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;
+	case TOKEN_LITERAL:					return "TOKEN_LITERAL";					break;
+	case TOKEN_STRING_LITERAL:	return "TOKEN_STRING_LITERAL";	break;
+	case TOKEN_PLUS:						return "TOKEN_PLUS";						break;
+	case TOKEN_KEYWORDS_END:		return "TOKEN_KEYWORDS_END";		break;
+	case TOKEN_EQUAL:						return "TOKEN_EQUAL";						break;
+	case TOKEN_MINUS:						return "TOKEN_MINUS";						break;
+	case TOKEN_DIV:							return "TOKEN_DIV";							break;
+	case TOKEN_MUL:							return "TOKEN_MUL";							break;
+	case TOKEN_DOT:							return "TOKEN_DOT";							break;
+	case TOKEN_IF:							return "TOKEN_IF";							break;
+	case TOKEN_ELSE:						return "TOKEN_ELSE";						break;
+	case TOKEN_END:							return "TOKEN_END";							break;
 	}
 }
 
@@ -52,7 +57,7 @@ loc_to_str(const loc_t *loc)
 const char *
 token_to_str(const token_t *token)
 {
-	const char *token_loc = loc_to_str(&token->loc);
+	const char *token_loc = loc_to_str(&locid(token->loc_id));
 	const char *token_kind = token_kind_to_str(token->kind);
 	const size_t len = strlen(token_loc) + strlen(token_kind) + strlen(token->str)
 		+ 2  // 2 spaces
@@ -76,6 +81,17 @@ new_lexer(file_id_t file_id, sss2D_t lines)
 		.row = 0,
 		.lines = lines,
 		.file_id = file_id
+	};
+}
+
+token_t
+new_token(loc_t loc, token_kind_t token_kind, const char *str)
+{
+	append_loc(loc);
+	return (token_t) {
+		.loc_id = locs_len - 1,
+		.kind = token_kind,
+		.str = str,
 	};
 }
 
@@ -114,10 +130,13 @@ type_token(const char *str)
 	if (isalpha(first)) return TOKEN_LITERAL;
 
 	switch (first) {
-	case '.': return TOKEN_DOT;            break;
-	case '+': return TOKEN_PLUS;           break;
-	case '=': return TOKEN_EQUAL;          break;
-	case '"': return TOKEN_STRING_LITERAL; break;
+	case '.': return TOKEN_DOT;							break;
+	case '+': return TOKEN_PLUS;						break;
+	case '-': return TOKEN_MINUS;						break;
+	case '/': return TOKEN_DIV;							break;
+	case '*': return TOKEN_MUL;							break;
+	case '=': return TOKEN_EQUAL;						break;
+	case '"': return TOKEN_STRING_LITERAL;	break;
 	}
 
 	UNREACHABLE;
@@ -127,17 +146,17 @@ void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
 {
 	FOREACH(ss_t, ss, line) {
+		if (ss.str == NULL || *ss.str == '\0') continue;
+
 		const token_kind_t kind = type_token(ss.str);
 
-		token_t token = {
-			.loc = {
-				.row = lexer->row,
-				.col = ss.col,
-				.file_id = lexer->file_id
-			},
-			.kind = kind,
-			.str = ss.str,
+		loc_t loc = {
+			.row = lexer->row,
+			.col = ss.col,
+			.file_id = lexer->file_id
 		};
+
+		token_t token = new_token(loc, kind, ss.str);
 
 		vec_add(*ret, token);
 	}
@@ -154,13 +173,17 @@ static size_t utf8_char_len(unsigned char c)
 sss_t
 split(char *input, char delim)
 {
-	const size_t len_ = strlen(input);
+	size_t len_ = strlen(input);
 	if (len_ > 0 && input[len_ - 1] == '\n') {
-		input[len_ - 1] = '\0';
+		input[--len_] = '\0';
+	}
+
+	while (isspace(input[len_])) {
+		input[len_--] = '\0';
 	}
 
 	size_t lspace_count = 0;
-	while (isspace((unsigned char) *input)) {
+	while (isspace(*input)) {
 		input++;
 		lspace_count++;
 	}

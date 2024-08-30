@@ -29,10 +29,13 @@ print_ast(const ast_t *ast)
 		printf("else_body: %d\n", ast->if_stmt.else_body);
 	} break;
 
-	case AST_DOT:      printf("AST_DOT\n");      break;
-	case AST_PLUS:     printf("AST_PLUS\n");     break;
-	case AST_EQUAL:    printf("AST_EQUAL\n");    break;
-	case AST_POISONED: printf("AST_POISONED\n"); break;
+	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
+	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
+	case AST_MINUS:    printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
+	case AST_DIV:      printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
+	case AST_MUL:      printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
+	case AST_EQUAL:    printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
+	case AST_POISONED: printf("%s\n", ast_kind_to_str(ast->ast_kind));	break;
 	}
 }
 
@@ -40,11 +43,14 @@ const char *
 ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
-	case AST_IF:       return "AST_IF";       break;
-	case AST_POISONED: return "AST_POISONED"; break;
-	case AST_PUSH:     return "AST_PUSH";     break;
-	case AST_PLUS:     return "AST_PLUS";     break;
-	case AST_DOT:      return "AST_DOT";      break;
-	case AST_EQUAL:    return "AST_EQUAL";    break;
+	case AST_IF:				return "AST_IF";				break;
+	case AST_POISONED:	return "AST_POISONED";	break;
+	case AST_PUSH:			return "AST_PUSH";			break;
+	case AST_PLUS:			return "AST_PLUS";			break;
+	case AST_DIV:				return "AST_DIV";				break;
+	case AST_MUL:				return "AST_MUL";				break;
+	case AST_MINUS:			return "AST_MINUS";			break;
+	case AST_DOT:				return "AST_DOT";				break;
+	case AST_EQUAL:			return "AST_EQUAL";			break;
 	}
 }

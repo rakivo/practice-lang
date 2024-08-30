@@ -17,7 +17,12 @@ typedef enum {
 	TOKEN_KEYWORDS_END,
 
 	TOKEN_EQUAL,
+
 	TOKEN_PLUS,
+	TOKEN_MINUS,
+	TOKEN_DIV,
+	TOKEN_MUL,
+
 	TOKEN_DOT,
 	TOKEN_INTEGER,
 	TOKEN_LITERAL,
@@ -32,14 +37,19 @@ typedef struct {
 	file_id_t file_id;
 } loc_t;
 
+typedef u32 loc_id_t;
+
 typedef struct {
-	loc_t loc;
+	loc_id_t loc_id;
 	token_kind_t kind;
 	const char *str;
 } token_t;
 
+token_t
+new_token(loc_t loc, token_kind_t token_kind, const char *str);
+
 const char *
-token_kind_to_str(const token_kind_t token_kind);
+token_kind_to_str(token_kind_t token_kind);
 
 const char *
 loc_to_str(const loc_t *loc);
@@ -77,5 +87,14 @@ type_token(const char *str);
 
 void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret);
+
+#define LOCS_CAP 1024
+extern loc_id_t LOCS_SIZE;
+extern loc_t LOCS[LOCS_CAP];
+
+#define locid(id) (LOCS[id])
+#define locs_len (LOCS_SIZE)
+#define last_loc (LOCS[LOCS_SIZE - 1])
+#define append_loc(loc_) (LOCS[LOCS_SIZE++] = loc_)
 
 #endif // LEXER_H_
