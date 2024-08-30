@@ -40,6 +40,10 @@ main(int argc, const char *argv[])
   Lexer lexer = new_lexer(file_.file_id, lines);
   tokens_t tokens = lexer_lex(&lexer);
 
+	FOREACH(token_t, token, tokens) {
+		printf("%s\n", token_to_str(&token));
+	}
+
   Parser parser = { tokens };
   parser_parse(&parser);
 

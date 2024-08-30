@@ -31,25 +31,40 @@ token_kind_to_str(const token_kind_t token_kind)
 const char *
 loc_to_str(const loc_t *loc)
 {
-	scratch_buffer_clear();
-	scratch_buffer_printf("%s:%d:%d:",
-												fileid(loc->file_id).file_path.buf,
-												loc->row + 1,
-												loc->col + 1);
+	const str_t file_path = fileid(loc->file_id).file_path;
+	const size_t len = file_path.len
+		+ 32 * 2 // two 32bit integers
+		+ 3;     // 3 colons
 
-	return scratch_buffer_to_string();
+	char *ret = calloc_string(len + 1);
+	snprintf(ret, len,
+					 "%s:%d:%d:",
+					 file_path.buf,
+					 loc->row + 1,
+					 loc->col + 1);
+
+	return ret;
 }
 
 const char *
 token_to_str(const token_t *token)
 {
-	scratch_buffer_clear();
-	scratch_buffer_printf("%s '%s': %s",
-					 loc_to_str(&token->loc),
-					 token->str,
-					 token_kind_to_str(token->kind));
+	const char *token_loc = loc_to_str(&token->loc);
+	const char *token_kind = token_kind_to_str(token->kind);
+	const size_t len = strlen(token_loc) + strlen(token_kind) + strlen(token->str)
+		+ 1  // space
+		+ 2  // two quotes
+		+ 1  // colon
+		+ 1  // space
+		+ 1; // \0
 
-	return scratch_buffer_to_string();
+	char *ret = calloc_string(len);
+	snprintf(ret, len, "%s '%s': %s",
+					 token_loc,
+					 token->str,
+					 token_kind);
+
+	return ret;
 }
 
 Lexer
