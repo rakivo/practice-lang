@@ -93,15 +93,13 @@ INLINE void compile_block(ast_t ast)
 INLINE void
 print_last_two(const char *r1, const char *r2)
 {
-	wtprintln("mov %s, qword [r15 - WORD_SIZE]", r1);
-	wtprintln("mov %s, qword [r15 - WORD_SIZE * 2]", r2);
+	wtprintln("mov %s, qword [rsp]", r1);
+	wtprintln("mov %s, qword [rsp + WORD_SIZE]", r2);
 }
 
 // Perform binary operation with rax, rbx
 #define print_binop_and_mov_to_stack(op) \
-	print_last_two("rbx", "rax"); \
-	wtln(op); \
-	wtln("mov [r15 - WORD_SIZE * 2], rax");
+	print_last_two("rbx", "rax"); wtln(op); wtln("push rax");
 
 static void
 compile_ast(const ast_t *ast)
@@ -120,8 +118,7 @@ compile_ast(const ast_t *ast)
 		size_t else_label = curr_label;
 		size_t done_label = curr_label + 1;
 
-		wtln("sub r15, WORD_SIZE");
-		wtln("mov rax, [r15]");
+		wtln("pop rax");
 
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", else_label);
@@ -147,13 +144,15 @@ compile_ast(const ast_t *ast)
 		case VALUE_KIND_INTEGER: {
 			last_value_kind = VALUE_KIND_INTEGER;
 			last_integer_push_value = ast->push_stmt.integer;
-			wtprintln("mov qword [r15], 0x%lX", ast->push_stmt.integer);
+			wtprintln("mov rax, 0x%lX", ast->push_stmt.integer);
+			wtln("push rax");
 		} break;
 
 		case VALUE_KIND_STRING: {
 			last_value_kind = VALUE_KIND_STRING;
 			scratch_buffer_genstrlen();
-			wtprintln("mov qword [r15], %s", scratch_buffer_to_string());
+			wtprintln("mov rax, %s", scratch_buffer_to_string());
+			wtln("push rax");
 			string_literal_counter++;
 		} break;
 
@@ -161,45 +160,39 @@ compile_ast(const ast_t *ast)
 		}
 
 		stack_size++;
-		wtln("add r15, WORD_SIZE");
 	} break;
 
 	case AST_PLUS: {
 		print_binop_and_mov_to_stack("add rax, rbx");
-		wtln("sub r15, WORD_SIZE");
 	} break;
 
 	case AST_MINUS: {
 		print_binop_and_mov_to_stack("sub rax, rbx");
-		wtln("sub r15, WORD_SIZE");
 	} break;
 
 	case AST_DIV: {
 		wtln("xor edx, edx");
 		print_binop_and_mov_to_stack("div rbx");
-		wtln("sub r15, WORD_SIZE");
 	} break;
 
 	case AST_MUL: {
 		wtln("xor edx, edx");
 		print_binop_and_mov_to_stack("mul rbx");
-		wtln("sub r15, WORD_SIZE");
 	} break;
 
 	case AST_EQUAL: {
-		wtln("mov rax, qword [r15 - WORD_SIZE]");
-		wtln("mov rbx, qword [r15 - WORD_SIZE * 2]");
+		wtln("mov rax, qword [rsp]");
+		wtln("mov rbx, qword [rsp + WORD_SIZE]");
 		wtln("cmp rax, rbx");
 		wtln("sete al");
 		wtln("movzx rax, al");
-		wtln("mov qword [r15], rax");
-		wtln("add r15, WORD_SIZE");
+		wtln("push rax");
 	} break;
 
 	case AST_DOT: {
 		switch (last_value_kind) {
 		case VALUE_KIND_INTEGER: {
-			wtln("mov rax, qword [r15 - WORD_SIZE]");
+			wtln("mov rax, qword [rsp]");
 			wtln("mov r14, 0x1"); // mov 1 to r14 to print newline
 			wtln("call dmp_i64");
 		} break;
@@ -227,8 +220,6 @@ compile_ast(const ast_t *ast)
 static void
 print_defines(void)
 {
-	wln(DEFINE " MEMORY_CAP 8 * 1024");
-	wln(DEFINE " STACK_CAP  1024");
 	wln(DEFINE " WORD_SIZE  8");
 	wln(DEFINE " NEW_LINE   10");
 	wln(DEFINE " SYS_WRITE  1");
@@ -369,14 +360,12 @@ static void
 print_data_section(void)
 {
 	wln(SECTION_DATA_WRITEABLE);
-	wln("stack_ptr dq stack_buf");
 }
 
 static void
 print_bss_section(void)
 {
 	wln(SECTION_BSS_WRITEABLE);
-	wln("stack_buf " RESERVE_QUAD " STACK_CAP");
 }
 
 Compiler
@@ -405,8 +394,6 @@ compiler_compile(Compiler *compiler)
 
 	wln(GLOBAL " _start");
 	wln("_start:");
-
-	wtln("mov r15, qword [stack_ptr]");
 
 	ast_t ast = astid(compiler->ast_cur);
 	while (ast.next && ast.next <= ASTS_SIZE) {
