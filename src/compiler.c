@@ -53,8 +53,8 @@ INLINE void scratch_buffer_genstrlen_offset(i32 offset)
 	string_literal_counter -= offset;
 }
 
-// Compile an ast till the ast.next is greater than or equal to `0`.
-// Every non-empty block should be with an `ast.next` = -1 at the end, to indicate the end of the block.
+// Compile an ast till the `ast.next` is greater than or equal to `0`.
+// Every non-empty block should be with an `ast.next` = -1 at the end.
 INLINE void compile_block(ast_t ast)
 {
 	while (ast.ast_id < asts_len) {
@@ -74,7 +74,7 @@ compile_ast(const ast_t *ast)
 	switch (ast->ast_kind) {
 	case AST_IF: {
 		// If statement is empty
-		if (!ast->if_stmt.then_body && !ast->if_stmt.else_body) return;
+		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
 
 		wtln("sub r15, WORD_SIZE");
 		wtln("mov rax, [r15]");

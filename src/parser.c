@@ -78,7 +78,11 @@ ast_token(Parser *parser, const token_t *token)
 			token_count++;
 		}
 
-		ast.next = last_ast.next;
+		if (last_ast.next > 0) {
+			ast.next = last_ast.next;
+		} else {
+			ast.next = next;
+		}
 
 		// indicate the end of the body
 		last_ast.next = -1;

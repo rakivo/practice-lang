@@ -45,7 +45,7 @@ main(int argc, const char *argv[])
 	Parser parser = { tokens };
 	parser_parse(&parser);
 
-	// for (size_t i = 0; i < (size_t) ASTS_SIZE; ++i) print_ast(&astid(i));
+	for (size_t i = 0; i < (size_t) ASTS_SIZE; ++i) print_ast(&astid(i));
 
 	Compiler compiler = new_compiler(0);
 	compiler_compile(&compiler);
