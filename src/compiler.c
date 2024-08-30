@@ -44,7 +44,6 @@ static FILE *stream = NULL;
 static size_t stack_size = 0;
 static size_t label_counter = 0;
 static size_t string_literal_counter = 0;
-static size_t equal_jne_label_counter = 0;
 static size_t last_integer_push_value = 0;
 static value_kind_t last_value_kind = VALUE_KIND_POISONED;
 
@@ -134,7 +133,6 @@ compile_ast(const ast_t *ast)
 		}
 
 		wprintln("._else_%zu:", else_label);
-
 		if (ast->if_stmt.else_body >= 0) {
 			if_ast = astid(ast->if_stmt.else_body);
 			compile_block(if_ast);
@@ -192,16 +190,10 @@ compile_ast(const ast_t *ast)
 		wtln("mov rax, qword [r15 - WORD_SIZE]");
 		wtln("mov rbx, qword [r15 - WORD_SIZE * 2]");
 		wtln("cmp rax, rbx");
-
-		wtprintln("jne ._jne_%zu", equal_jne_label_counter);
-		wtln("mov qword [r15], 0x1");
-		wtprintln("jmp ._done_%zu", equal_jne_label_counter);
-		wprintln("._jne_%zu:", equal_jne_label_counter);
-		wtln("mov qword [r15], 0x0");
-		wprintln("._done_%zu:", equal_jne_label_counter);
+		wtln("sete al");
+		wtln("movzx rax, al");
+		wtln("mov qword [r15], rax");
 		wtln("add r15, WORD_SIZE");
-
-		equal_jne_label_counter++;
 	} break;
 
 	case AST_DOT: {
