@@ -12,6 +12,8 @@ DECLARE_STATIC(loc, LOC);
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF] = "if",
 	[TOKEN_ELSE] = "else",
+	[TOKEN_WHILE] = "while",
+	[TOKEN_DO] = "do",
 	[TOKEN_END] = "end"
 };
 
@@ -29,6 +31,10 @@ token_kind_to_str(const token_kind_t token_kind)
 	case TOKEN_DIV:							return "TOKEN_DIV";							break;
 	case TOKEN_MUL:							return "TOKEN_MUL";							break;
 	case TOKEN_DOT:							return "TOKEN_DOT";							break;
+	case TOKEN_GREATER:					return "TOKEN_GREATER";					break;
+	case TOKEN_LESS:						return "TOKEN_LESS";						break;
+	case TOKEN_WHILE:						return "TOKEN_WHILE";						break;
+	case TOKEN_DO:							return "TOKEN_DO";							break;
 	case TOKEN_IF:							return "TOKEN_IF";							break;
 	case TOKEN_ELSE:						return "TOKEN_ELSE";						break;
 	case TOKEN_END:							return "TOKEN_END";							break;
@@ -131,6 +137,8 @@ type_token(const char *str)
 
 	switch (first) {
 	case '.': return TOKEN_DOT;							break;
+	case '>': return TOKEN_GREATER;					break;
+	case '<': return TOKEN_LESS;						break;
 	case '+': return TOKEN_PLUS;						break;
 	case '-': return TOKEN_MINUS;						break;
 	case '/': return TOKEN_DIV;							break;
@@ -146,8 +154,6 @@ void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
 {
 	FOREACH(ss_t, ss, line) {
-		if (ss.str == NULL || *ss.str == '\0') continue;
-
 		const token_kind_t kind = type_token(ss.str);
 
 		loc_t loc = {
@@ -173,15 +179,18 @@ static size_t utf8_char_len(unsigned char c)
 sss_t
 split(char *input, char delim)
 {
+	// trim newline from `fgets`
 	size_t len_ = strlen(input);
 	if (len_ > 0 && input[len_ - 1] == '\n') {
 		input[--len_] = '\0';
 	}
 
+	// do rtrim
 	while (isspace(input[len_])) {
 		input[len_--] = '\0';
 	}
 
+	// do ltrim
 	size_t lspace_count = 0;
 	while (isspace(*input)) {
 		input++;
@@ -207,7 +216,7 @@ split(char *input, char delim)
 		} else if (c == '"' && !in_single_quote) {
 			in_double_quote = !in_double_quote;
 		} else if (c == delim && !in_single_quote && !in_double_quote) {
-			if (s != i) {
+			if (s < i) {
 				scratch_buffer_clear();
 				for (size_t i_ = s; i_ < i; ++i_) {
 					scratch_buffer_append_char(input[i_]);
@@ -216,7 +225,12 @@ split(char *input, char delim)
 					.col = s + lspace_count,
 					.str = scratch_buffer_copy(),
 				});
+
 				s = i + utf8_char_len(c);
+
+				// Skip consecutive delimiters
+				while (s < len && input[s] == delim) s++;
+				i = s - 1;
 			} else {
 				e = i + utf8_char_len(c);
 			}

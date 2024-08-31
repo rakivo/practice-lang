@@ -36,6 +36,8 @@ typedef struct {} div_stmt_t;
 typedef struct {} mul_stmt_t;
 
 typedef struct {} dot_stmt_t;
+typedef struct {} less_stmt_t;
+typedef struct {} greater_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
@@ -52,16 +54,24 @@ typedef struct {
 	ast_id_t else_body;
 } if_stmt_t;
 
+typedef struct {
+	ast_id_t cond;
+	ast_id_t body;
+} while_stmt_t;
+
 typedef enum {
 	AST_POISONED,
 	AST_IF,
+	AST_WHILE,
 	AST_DOT,
 	AST_PUSH,
 	AST_MUL,
 	AST_DIV,
 	AST_MINUS,
 	AST_PLUS,
+	AST_LESS,
 	AST_EQUAL,
+	AST_GREATER,
 } ast_kind_t;
 
 typedef struct {
@@ -79,7 +89,10 @@ typedef struct {
 		minus_stmt_t minus_stmt;
 		div_stmt_t div_stmt;
 		mul_stmt_t mul_stmt;
+		less_stmt_t less_stmt;
 		equal_stmt_t equal_stmt;
+		greater_stmt_t greater_stmt;
+		while_stmt_t while_stmt;
 	};
 } ast_t;
 

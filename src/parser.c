@@ -31,22 +31,98 @@ void
 parser_parse(Parser *parser)
 {
 	while (token_idx < vec_size(parser->ts)) {
-		const ast_t ast = ast_token(parser, &parser->ts[token_idx]);
+		const ast_t ast = ast_token(parser, &parser->ts[token_idx], false);
 		append_ast(ast);
 		token_idx++;
 	}
 }
 
-static bool done = false;
 static bool is_else = false;
+static bool cond_is_not_empty = false;
+
 static size_t if_count = 0;
+static size_t while_count = 0;
 static size_t else_count = 0;
 
 ast_t
-ast_token(Parser *parser, const token_t *token)
+ast_token(Parser *parser, const token_t *token, bool rec)
 {
 	switch (token->kind) {
+	case TOKEN_WHILE: {
+		if (!rec) {
+			while_count = 0;
+		}
+
+		while_count++;
+
+		// Skip `while` keyword
+		token_idx++;
+
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_WHILE,
+			.while_stmt = {
+				.cond = -1,
+				.body = -1,
+			}
+		);
+
+		size_t token_count = 0;
+		size_t start = token_idx;
+
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx];
+			if (token_.kind == TOKEN_DO) {
+				if (token_idx > start) {
+					cond_is_not_empty = true;
+				}
+				token_idx++;
+				break;
+			} else if (token_count == 0) {
+				ast.while_stmt.cond = next;
+			}
+
+			const ast_t ast = ast_token(parser, &parser->ts[token_idx++], true);
+			append_ast(ast);
+			token_count++;
+		}
+
+		if (cond_is_not_empty) {
+			last_ast.next = -1;
+		}
+
+		token_count = 0;
+
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx];
+			if (token_.kind == TOKEN_END) {
+				break;
+			} else if (token_count == 0) {
+				ast.while_stmt.body = next;
+			}
+
+			const ast_t ast = ast_token(parser, &parser->ts[token_idx++], true);
+			append_ast(ast);
+			token_count++;
+		}
+
+		if (last_ast.next > 0) {
+			ast.next = last_ast.next;
+		} else {
+			ast.next = next;
+		}
+
+		// indicate the end of the body
+		last_ast.next = -1;
+
+		return ast;
+	} break;
+
 	case TOKEN_IF: {
+		if (!rec) {
+			if_count = 0;
+			else_count = 0;
+			is_else = false;
+		}
+
 		if_count++;
 
 		// Skip `if` keyword
@@ -61,7 +137,7 @@ ast_token(Parser *parser, const token_t *token)
 
 		size_t token_count = 0;
 
-		while (!done && token_idx < vec_size(parser->ts)) {
+		while (token_idx < vec_size(parser->ts)) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				break;
@@ -79,7 +155,7 @@ ast_token(Parser *parser, const token_t *token)
 				ast.if_stmt.then_body = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx]);
+			const ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
 			if (token_.kind != TOKEN_ELSE) token_idx++;
 			append_ast(ast);
 			token_count++;
@@ -97,12 +173,16 @@ ast_token(Parser *parser, const token_t *token)
 		return ast;
 	} break;
 
+	case TOKEN_DO: {
+		report_error("%s error: do outside of while scope", loc_to_str(&locid(token->loc_id)));
+	} break;
+
 	case TOKEN_ELSE: {
-		printf("%s error: else outside of if scope\n", loc_to_str(&locid(token->loc_id)));
+		report_error("%s error: else outside of if scope", loc_to_str(&locid(token->loc_id)));
 	} break;
 
 	case TOKEN_END: {
-		printf("%s error: no matching if found\n", loc_to_str(&locid(token->loc_id)));
+		report_error("%s error: no matching if or do found", loc_to_str(&locid(token->loc_id)));
 	} break;
 
 	case TOKEN_KEYWORDS_END: break;
@@ -128,12 +208,22 @@ ast_token(Parser *parser, const token_t *token)
 	} break;
 
 	case TOKEN_LITERAL: {
-		printf("%s\n", token->str);
+		printf("Unexpected literal: '%s'\n", token->str);
 		TODO("Handle literals");
 	} break;
 
 	case TOKEN_EQUAL: {
 		ast_t ast = make_ast(0, token->loc_id, ++next, AST_EQUAL, .equal_stmt = {0});
+		return ast;
+	} break;
+
+	case TOKEN_GREATER: {
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_GREATER, .greater_stmt = {0});
+		return ast;
+	} break;
+
+	case TOKEN_LESS: {
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_LESS, .less_stmt = {0});
 		return ast;
 	} break;
 

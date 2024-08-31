@@ -10,8 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DEBUG 1
-
 int
 main(int argc, const char *argv[])
 {
@@ -27,7 +25,7 @@ main(int argc, const char *argv[])
 
 	FILE *file = fopen(file_path, "r");
 	if (file == NULL) {
-		eprintf("ERROR: Failed to open file: %s", file_path);
+		eprintf("ERROR: Failed to open file: %s\n", file_path);
 		return EXIT_FAILURE;
 	}
 

@@ -43,6 +43,7 @@
 static FILE *stream = NULL;
 static size_t stack_size = 0;
 static size_t label_counter = 0;
+static size_t while_label_counter = 0;
 static size_t string_literal_counter = 0;
 static size_t last_integer_push_value = 0;
 static value_kind_t last_value_kind = VALUE_KIND_POISONED;
@@ -98,8 +99,8 @@ print_last_two(const char *r1, const char *r2)
 }
 
 // Perform binary operation with rax, rbx
-#define print_binop_and_mov_to_stack(op) \
-	print_last_two("rbx", "rax"); wtln(op); wtln("push rax");
+#define print_binop_and_mov_to_stack(...) \
+	print_last_two("rbx", "rax"); wtln(__VA_ARGS__); wtln("push rax");
 
 static void
 compile_ast(const ast_t *ast)
@@ -119,7 +120,6 @@ compile_ast(const ast_t *ast)
 		size_t done_label = curr_label + 1;
 
 		wtln("pop rax");
-
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", else_label);
 
@@ -137,6 +137,39 @@ compile_ast(const ast_t *ast)
 
 		wprintln("._edon_%zu:", done_label);
 		label_counter++;
+	} break;
+
+	case AST_WHILE: {
+		wprintln("._while_%zu:", while_label_counter);
+
+		wtln("; -- COND --");
+
+		ast_t while_ast;
+
+		if (ast->while_stmt.cond < 0) goto compile_while_loop;
+
+		while_ast = astid(ast->while_stmt.cond);
+		if (ast->while_stmt.cond >= 0) {
+			compile_block(while_ast);
+		}
+
+		wtln("pop rax");
+		wtln("test rax, rax");
+
+		wtprintln("jz ._wdon_%zu", while_label_counter);
+
+compile_while_loop:
+
+		while_ast = astid(ast->while_stmt.body);
+		if (ast->while_stmt.body >= 0) {
+			compile_block(while_ast);
+		}
+
+		wtprintln("jmp ._while_%zu", while_label_counter);
+
+		wprintln("._wdon_%zu:", while_label_counter);
+
+		while_label_counter++;
 	} break;
 
 	case AST_PUSH: {
@@ -167,7 +200,11 @@ compile_ast(const ast_t *ast)
 	} break;
 
 	case AST_MINUS: {
-		print_binop_and_mov_to_stack("sub rax, rbx");
+		// print_binop_and_mov_to_stack("sub rax, rbx");
+		wtln("pop rbx");
+		wtln("mov rax, qword [rsp]");
+		wtln("sub rax, rbx");
+		wtln("mov [rsp], rax");
 	} break;
 
 	case AST_DIV: {
@@ -186,7 +223,25 @@ compile_ast(const ast_t *ast)
 		wtln("cmp rax, rbx");
 		wtln("sete al");
 		wtln("movzx rax, al");
-		wtln("push rax");
+		wtln("mov [rsp], rax");
+	} break;
+
+	case AST_LESS: {
+		wtln("mov rax, qword [rsp]");
+		wtln("mov rbx, qword [rsp + WORD_SIZE]");
+		wtln("cmp rbx, rax");
+		wtln("setb al");
+		wtln("movzx rax, al");
+		wtln("mov [rsp], rax");
+	} break;
+
+	case AST_GREATER: {
+		wtln("mov rax, qword [rsp]");
+		wtln("mov rbx, qword [rsp + WORD_SIZE]");
+		wtln("cmp rbx, rax");
+		wtln("setg al");
+		wtln("movzx rax, al");
+		wtln("mov [rsp], rax");
 	} break;
 
 	case AST_DOT: {
@@ -382,7 +437,7 @@ compiler_compile(Compiler *compiler)
 {
 	stream = fopen(compiler->output_file_path, "w");
 	if (stream == NULL) {
-		eprintf("ERROR: Failed to open file: %s", compiler->output_file_path);
+		eprintf("ERROR: Failed to open file: %s\n", compiler->output_file_path);
 		exit(EXIT_FAILURE);
 	}
 

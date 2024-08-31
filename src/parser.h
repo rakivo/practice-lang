@@ -12,6 +12,6 @@ void
 parser_parse(Parser *parser);
 
 ast_t
-ast_token(Parser *parser, const token_t *token);
+ast_token(Parser *parser, const token_t *token, bool rec);
 
 #endif // PARSER_H_

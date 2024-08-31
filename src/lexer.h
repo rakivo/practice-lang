@@ -8,14 +8,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+// NOTE: If you added a new keyword, update `KEYWORDS` array at the top of the `lexer.c` file.
 typedef enum {
 	TOKEN_IF,
+	TOKEN_WHILE,
+	TOKEN_DO,
 	TOKEN_ELSE,
 	TOKEN_END,
 
 	// Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.
 	TOKEN_KEYWORDS_END,
 
+	TOKEN_GREATER,
+	TOKEN_LESS,
 	TOKEN_EQUAL,
 
 	TOKEN_PLUS,

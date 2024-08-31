@@ -29,13 +29,21 @@ print_ast(const ast_t *ast)
 		printf("else_body: %d\n", ast->if_stmt.else_body);
 	} break;
 
-	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
-	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
-	case AST_MINUS:    printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
-	case AST_DIV:      printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
-	case AST_MUL:      printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
-	case AST_EQUAL:    printf("%s\n", ast_kind_to_str(ast->ast_kind));  break;
-	case AST_POISONED: printf("%s\n", ast_kind_to_str(ast->ast_kind));	break;
+	case AST_WHILE: {
+		printf("AST_WHILE\n");
+		printf("cond: %d\n", ast->while_stmt.cond);
+		printf("body: %d\n", ast->while_stmt.body);
+	} break;
+
+	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_MINUS:    printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_DIV:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_MUL:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_EQUAL:    printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_LESS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_GREATER:  printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_POISONED: printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	}
 }
 
@@ -45,6 +53,7 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 	switch (ast_kind) {
 	case AST_IF:				return "AST_IF";				break;
 	case AST_POISONED:	return "AST_POISONED";	break;
+	case AST_WHILE:			return "AST_WHILE";			break;
 	case AST_PUSH:			return "AST_PUSH";			break;
 	case AST_PLUS:			return "AST_PLUS";			break;
 	case AST_DIV:				return "AST_DIV";				break;
@@ -52,5 +61,7 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 	case AST_MINUS:			return "AST_MINUS";			break;
 	case AST_DOT:				return "AST_DOT";				break;
 	case AST_EQUAL:			return "AST_EQUAL";			break;
+	case AST_LESS:			return "AST_LESS";			break;
+	case AST_GREATER:		return "AST_GREATER";		break;
 	}
 }
