@@ -18,7 +18,9 @@
 #define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
 #define wtprintln(fmt, ...) fprintf(stream, TAB fmt "\n", __VA_ARGS__)
 
-// #define FASM
+#ifndef DEBUG
+	#define FASM
+#endif
 
 #ifdef FASM
 	#define DEFINE "define"
@@ -106,7 +108,10 @@ compile_block(ast_t ast)
 static void
 compile_ast(const ast_t *ast)
 {
+#ifdef DEBUG
 	wprintln("; -- %s --", ast_kind_to_str(ast->ast_kind));
+#endif
+
 	switch (ast->ast_kind) {
 	case AST_IF: {
 		if (stack_size < 1) {
@@ -143,7 +148,9 @@ compile_ast(const ast_t *ast)
 
 		wprintln("._while_%zu:", curr_label);
 
+#ifdef DEBUG
 		wln("; -- COND --");
+#endif
 
 		ast_t while_ast;
 
@@ -154,7 +161,9 @@ compile_ast(const ast_t *ast)
 			compile_block(while_ast);
 		}
 
+#ifdef DEBUG
 		wln("; -- COND END --");
+#endif
 
 		wtln("pop rax");
 		wtln("test rax, rax");
@@ -438,7 +447,7 @@ compiler_compile(Compiler *compiler)
 {
 	stream = fopen(compiler->output_file_path, "w");
 	if (stream == NULL) {
-		eprintf("ERROR: Failed to open file: %s\n", compiler->output_file_path);
+		eprintf("error: Failed to open file: %s\n", compiler->output_file_path);
 		exit(EXIT_FAILURE);
 	}
 

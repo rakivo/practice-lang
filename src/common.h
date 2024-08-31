@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define DEBUG 1
+// #define PRINT_TOKENS
+// #define PRINT_ASTS
+// #define DEBUG 1
 
 typedef int64_t i64;
 typedef int32_t i32;
@@ -25,7 +27,7 @@ typedef uint8_t  u8;
 #ifdef DEBUG
 	#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #else
-	#define report_error(fmt, ...) eprintf(fmt "\n", __VA_ARGS__)
+	#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #endif // DEBUG
 
 /* ------------------------------------------------------- */
@@ -85,6 +87,8 @@ typedef uint8_t  u8;
 #define __unused
 #endif
 
+#define UNUSED_VAR(var) ((void) (var))
+
 #if (defined(__GNUC__) && __GNUC__ >= 7) || defined(__clang__)
 	#define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
 	#define UNUSED __attribute__((unused))
@@ -110,7 +114,7 @@ typedef uint8_t  u8;
 	} while (0)
 #ifdef NDEBUG
 #define REMINDER(_string, ...) do {} while (0)
-#define DEBUG_LOG(_string, ...) do {} while(0)
+#define DEBUG_LOG(_string, ...) do {} while (0)
 #else
 #define REMINDER(_string, ...) do { if (!debug_log) break; printf("TODO: %s -> in %s @ %s:%d\n", _string, __func__, __FILE__, __LINE__ , ##__VA_ARGS__); } while(0)
 #define DEBUG_LOG(_string, ...) \
@@ -132,14 +136,7 @@ typedef uint8_t  u8;
 #define TEST_ASSERT(condition_, string_) while (!(condition_)) { FATAL_ERROR(string_); }
 #define TEST_ASSERTF(condition_, string_, ...) while (!(condition_)) { char* str_ = str_printf(string_, __VA_ARGS__); FATAL_ERROR(str_); }
 
-#define EXPECT(_string, _value, _expected)                                     \
-	do {                                                                         \
-		long long __tempval1 = _value;                                             \
-		long long __tempval2 = _expected;                                          \
-		TEST_ASSERT(__tempval1 == __tempval2,                                      \
-								"Checking " _string ": expected %lld but was %lld.",           \
-								__tempval2, __tempval1);                                       \
-	} while (0)
+#define EXPECT(_string, _value, _expected) do { long long __tempval1 = _value; long long __tempval2 = _expected; TEST_ASSERT(__tempval1 == __tempval2, "Checking " _string ": expected %lld but was %lld.", __tempval2, __tempval1); } while (0)
 
 void eprintf(const char *format, ...);
 void evprintf(const char *format, va_list list);

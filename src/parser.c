@@ -220,8 +220,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_LITERAL: {
-		printf("Unexpected literal: '%s'\n", token->str);
-		TODO("Handle literals");
+		report_error("%s error: unexpected literal: '%s'", loc_to_str(&locid(token->loc_id)), token->str);
 	} break;
 
 	case TOKEN_EQUAL: {

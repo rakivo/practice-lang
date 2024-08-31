@@ -25,7 +25,7 @@ main(int argc, const char *argv[])
 
 	FILE *file = fopen(file_path, "r");
 	if (file == NULL) {
-		eprintf("ERROR: Failed to open file: %s\n", file_path);
+		eprintf("error: Failed to open file: %s\n", file_path);
 		return EXIT_FAILURE;
 	}
 
@@ -33,21 +33,31 @@ main(int argc, const char *argv[])
 
 	char line[1024];
 	sss2D_t lines = NULL;
+	u32 lines_skipped = 0;
 	while (fgets(line, sizeof(line), file) != NULL) {
-		vec_add(lines, split(line, ' '));
+		// Check if line starts with '#'
+		if (*line == '#') {
+			lines_skipped++;
+		} else {
+			vec_add(lines, split(line, ' '));
+		}
 	}
 
 	fclose(file);
 
-	Lexer lexer = new_lexer(file_.file_id, lines);
+	Lexer lexer = new_lexer(file_.file_id, lines, lines_skipped);
 	tokens_t tokens = lexer_lex(&lexer);
 
-	// FOREACH(token_t, token, tokens) printf("%s\n", token_to_str(&token));
+#ifdef PRINT_TOKENS
+	FOREACH(token_t, token, tokens) printf("%s\n", token_to_str(&token));
+#endif
 
 	Parser parser = { tokens };
 	parser_parse(&parser);
 
-	// for (size_t i = 0; i < (size_t) ASTS_SIZE; ++i) print_ast(&astid(i));
+#ifdef PRINT_ASTS
+	for (ast_id_t i = 0; i < ASTS_SIZE; ++i) print_ast(&astid(i));
+#endif
 
 	Compiler compiler = new_compiler(0);
 	compiler_compile(&compiler);

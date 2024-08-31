@@ -74,13 +74,13 @@ typedef ss_t **sss2D_t;
 typedef token_t *tokens_t;
 
 typedef struct {
-	u32 row;
+	u32 row, lines_skipped;
 	sss2D_t lines;
 	file_id_t file_id;
 } Lexer;
 
 Lexer
-new_lexer(file_id_t file_id, sss2D_t lines);
+new_lexer(file_id_t file_id, sss2D_t lines, u32 lines_skipped);
 
 tokens_t
 lexer_lex(Lexer *lexer);
@@ -89,7 +89,7 @@ sss_t
 split(char *input, char delim);
 
 token_kind_t
-type_token(const char *str);
+type_token(const char *str, const loc_t *loc);
 
 void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret);

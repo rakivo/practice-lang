@@ -83,12 +83,13 @@ token_to_str(const token_t *token)
 }
 
 Lexer
-new_lexer(file_id_t file_id, sss2D_t lines)
+new_lexer(file_id_t file_id, sss2D_t lines, u32 lines_skipped)
 {
 	return (Lexer) {
 		.row = 0,
 		.lines = lines,
-		.file_id = file_id
+		.file_id = file_id,
+		.lines_skipped = lines_skipped,
 	};
 }
 
@@ -127,7 +128,7 @@ check_for_keywords(const char *str)
 }
 
 token_kind_t
-type_token(const char *str)
+type_token(const char *str, const loc_t *loc)
 {
 	const i32 keyword_idx = check_for_keywords(str);
 	if (keyword_idx >= 0) return (token_kind_t) keyword_idx;
@@ -149,23 +150,20 @@ type_token(const char *str)
 	case '"': return TOKEN_STRING_LITERAL;	break;
 	}
 
-	UNREACHABLE;
+	report_error("%s error: unexpected literal: '%s'", loc_to_str(loc), str);
 }
 
 void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
 {
 	FOREACH(ss_t, ss, line) {
-		const token_kind_t kind = type_token(ss.str);
-
-		loc_t loc = {
-			.row = lexer->row,
+		const loc_t loc = (loc_t) {
+			.row = lexer->row + lexer->lines_skipped,
 			.col = ss.col,
 			.file_id = lexer->file_id
 		};
-
+		const token_kind_t kind = type_token(ss.str, &loc);
 		token_t token = new_token(loc, kind, ss.str);
-
 		vec_add(*ret, token);
 	}
 }
@@ -185,6 +183,14 @@ split(char *input, char delim)
 	size_t len_ = strlen(input);
 	if (len_ > 0 && input[len_ - 1] == '\n') {
 		input[--len_] = '\0';
+	}
+
+	for (size_t i = 0; i < len_; ++i) {
+		if (input[i] == '#') {
+			input[i] = '\0';
+			len_ = i - 1;
+			break;
+		}
 	}
 
 	// do rtrim

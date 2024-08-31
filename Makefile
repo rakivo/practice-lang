@@ -10,7 +10,7 @@ CC := clang
 
 WARN_FLAGS := -Wall -Wextra -Wpedantic -Wswitch-enum -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-folding-constant -Wno-gnu-empty-struct -Wno-excess-initializers -Wno-unsequenced
 INCLUDE_FLAGS := -I./$(INCLUDE_DIR)
-CFLAGS := -std=c11 -O0 -g
+CFLAGS := -std=c11 -O3 -g
 
 all: $(BUILD_DIR)/langc
 

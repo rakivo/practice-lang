@@ -23,7 +23,13 @@ void eprintf(const char *format, ...)
 NORETURN void report_error_(const char *func, const char *file,
 														const size_t line, const char *format, ...)
 {
+#ifdef DEBUG
 	eprintf("%s:%d: in %s(...)\n", file, line, func);
+#else
+	UNUSED_VAR(func);
+	UNUSED_VAR(file);
+	UNUSED_VAR(line);
+#endif
 	va_list arglist;
 	va_start(arglist, format);
 	vfprintf(stderr, format, arglist);
