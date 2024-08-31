@@ -15,7 +15,7 @@ print_ast(const ast_t *ast)
 
 	switch (ast->ast_kind) {
 	case AST_PUSH: {
-		printf("AST_PUSH\n");
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("value_kind: %s\n", ast->push_stmt.value_kind == VALUE_KIND_INTEGER ? "int" : "str");
 		if (ast->push_stmt.value_kind == VALUE_KIND_INTEGER)
 			printf("integer: %ld\n", ast->push_stmt.integer);
@@ -24,18 +24,19 @@ print_ast(const ast_t *ast)
 	} break;
 
 	case AST_IF: {
-		printf("AST_IF\n");
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("then_body: %d\n", ast->if_stmt.then_body);
 		printf("else_body: %d\n", ast->if_stmt.else_body);
 	} break;
 
 	case AST_WHILE: {
-		printf("AST_WHILE\n");
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("cond: %d\n", ast->while_stmt.cond);
 		printf("body: %d\n", ast->while_stmt.body);
 	} break;
 
 	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_DROP:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_MINUS:    printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_DIV:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
@@ -51,6 +52,7 @@ const char *
 ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
+	case AST_DROP:			return "AST_DROP";			break;
 	case AST_IF:				return "AST_IF";				break;
 	case AST_POISONED:	return "AST_POISONED";	break;
 	case AST_WHILE:			return "AST_WHILE";			break;

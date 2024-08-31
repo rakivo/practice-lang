@@ -13,6 +13,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF] = "if",
 	[TOKEN_ELSE] = "else",
 	[TOKEN_WHILE] = "while",
+	[TOKEN_DROP] = "drop",
 	[TOKEN_DO] = "do",
 	[TOKEN_END] = "end"
 };
@@ -21,6 +22,7 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_DROP:						return "TOKEN_DROP";						break;
 	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;
 	case TOKEN_LITERAL:					return "TOKEN_LITERAL";					break;
 	case TOKEN_STRING_LITERAL:	return "TOKEN_STRING_LITERAL";	break;

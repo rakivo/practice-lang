@@ -14,6 +14,7 @@ typedef enum {
 	TOKEN_WHILE,
 	TOKEN_DO,
 	TOKEN_ELSE,
+	TOKEN_DROP,
 	TOKEN_END,
 
 	// Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.

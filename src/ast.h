@@ -38,6 +38,7 @@ typedef struct {} mul_stmt_t;
 typedef struct {} dot_stmt_t;
 typedef struct {} less_stmt_t;
 typedef struct {} greater_stmt_t;
+typedef struct {} drop_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
@@ -71,6 +72,7 @@ typedef enum {
 	AST_PLUS,
 	AST_LESS,
 	AST_EQUAL,
+	AST_DROP,
 	AST_GREATER,
 } ast_kind_t;
 
@@ -93,6 +95,7 @@ typedef struct {
 		equal_stmt_t equal_stmt;
 		greater_stmt_t greater_stmt;
 		while_stmt_t while_stmt;
+		drop_stmt_t drop_stmt;
 	};
 } ast_t;
 

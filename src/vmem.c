@@ -2,7 +2,6 @@
 // Use of this source code is governed by a LGPLv3.0
 // a copy of which can be found in the LICENSE file.
 
-
 #include "vmem.h"
 
 #include <stdio.h>

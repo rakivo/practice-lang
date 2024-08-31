@@ -18,7 +18,7 @@
 #define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
 #define wtprintln(fmt, ...) fprintf(stream, TAB fmt "\n", __VA_ARGS__)
 
-#define FASM
+// #define FASM
 
 #ifdef FASM
 	#define DEFINE "define"
@@ -120,6 +120,7 @@ compile_ast(const ast_t *ast)
 		size_t done_label = curr_label + 1;
 
 		wtln("pop rax");
+
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", else_label);
 
@@ -140,36 +141,38 @@ compile_ast(const ast_t *ast)
 	} break;
 
 	case AST_WHILE: {
-		wprintln("._while_%zu:", while_label_counter);
+		const size_t curr_label = while_label_counter++;
 
-		wtln("; -- COND --");
+		wprintln("._while_%zu:", curr_label);
+
+		wln("; -- COND --");
 
 		ast_t while_ast;
 
-		if (ast->while_stmt.cond < 0) goto compile_while_loop;
+		if (ast->while_stmt.cond < 0) goto compile_loop;
 
 		while_ast = astid(ast->while_stmt.cond);
 		if (ast->while_stmt.cond >= 0) {
 			compile_block(while_ast);
 		}
 
+		wln("; -- COND END --");
+
 		wtln("pop rax");
 		wtln("test rax, rax");
 
-		wtprintln("jz ._wdon_%zu", while_label_counter);
+		wtprintln("jz ._wdon_%zu", curr_label);
 
-compile_while_loop:
+compile_loop:
 
 		while_ast = astid(ast->while_stmt.body);
 		if (ast->while_stmt.body >= 0) {
 			compile_block(while_ast);
 		}
 
-		wtprintln("jmp ._while_%zu", while_label_counter);
+		wtprintln("jmp ._while_%zu", curr_label);
 
-		wprintln("._wdon_%zu:", while_label_counter);
-
-		while_label_counter++;
+		wprintln("._wdon_%zu:", curr_label);
 	} break;
 
 	case AST_PUSH: {
@@ -242,6 +245,10 @@ compile_while_loop:
 		wtln("setg al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
+	} break;
+
+	case AST_DROP: {
+		wtln("pop rax");
 	} break;
 
 	case AST_DOT: {

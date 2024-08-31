@@ -51,6 +51,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	case TOKEN_WHILE: {
 		if (!rec) {
 			while_count = 0;
+			cond_is_not_empty = false;
 		}
 
 		while_count++;
@@ -99,8 +100,9 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.while_stmt.body = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx++], true);
+			const ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
 			append_ast(ast);
+			token_idx++;
 			token_count++;
 		}
 
@@ -183,6 +185,16 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 	case TOKEN_END: {
 		report_error("%s error: no matching if or do found", loc_to_str(&locid(token->loc_id)));
+	} break;
+
+	case TOKEN_DROP: {
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_DROP,
+			.push_stmt = {
+				.value_kind = VALUE_KIND_INTEGER,
+				.integer = parse_int(token->str),
+			}
+		);
+		return ast;
 	} break;
 
 	case TOKEN_KEYWORDS_END: break;
