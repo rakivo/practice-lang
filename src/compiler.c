@@ -51,26 +51,30 @@ static value_kind_t last_value_kind = VALUE_KIND_POISONED;
 static void
 compile_ast(const ast_t *ast);
 
-INLINE void scratch_buffer_genstr(void)
+INLINE void
+scratch_buffer_genstr(void)
 {
 	scratch_buffer_clear();
 	scratch_buffer_printf("__str_%zu__", string_literal_counter);
 }
 
-INLINE void scratch_buffer_genstr_offset(i32 offset)
+INLINE void
+scratch_buffer_genstr_offset(i32 offset)
 {
 	string_literal_counter += offset;
 	scratch_buffer_genstr();
 	string_literal_counter -= offset;
 }
 
-INLINE void scratch_buffer_genstrlen(void)
+INLINE void
+scratch_buffer_genstrlen(void)
 {
 	scratch_buffer_clear();
 	scratch_buffer_printf("__str_%zu_len__", string_literal_counter);
 }
 
-INLINE void scratch_buffer_genstrlen_offset(i32 offset)
+INLINE void
+scratch_buffer_genstrlen_offset(i32 offset)
 {
 	string_literal_counter += offset;
 	scratch_buffer_genstrlen();
@@ -79,7 +83,8 @@ INLINE void scratch_buffer_genstrlen_offset(i32 offset)
 
 // Compile an ast till the `ast.next` is greater than or equal to `0`.
 // Every non-empty block should be with an `ast.next` = -1 at the end.
-INLINE void compile_block(ast_t ast)
+INLINE void
+compile_block(ast_t ast)
 {
 	while (ast.ast_id < asts_len) {
 		compile_ast(&ast);
@@ -111,29 +116,26 @@ compile_ast(const ast_t *ast)
 		// If statement is empty
 		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
 
-		size_t curr_label = label_counter++;
-		size_t else_label = curr_label;
-		size_t done_label = curr_label + 1;
+		const size_t curr_label = label_counter++;
 
 		wtln("pop rax");
 
 		wtln("test rax, rax");
-		wtprintln("jz ._else_%zu", else_label);
+		wtprintln("jz ._else_%zu", curr_label);
 
 		ast_t if_ast = astid(ast->if_stmt.then_body);
 		if (ast->if_stmt.then_body >= 0) {
 			compile_block(if_ast);
-			wtprintln("jmp ._edon_%zu", done_label);
+			wtprintln("jmp ._edon_%zu", curr_label);
 		}
 
-		wprintln("._else_%zu:", else_label);
+		wprintln("._else_%zu:", curr_label);
 		if (ast->if_stmt.else_body >= 0) {
 			if_ast = astid(ast->if_stmt.else_body);
 			compile_block(if_ast);
 		}
 
-		wprintln("._edon_%zu:", done_label);
-		label_counter++;
+		wprintln("._edon_%zu:", curr_label);
 	} break;
 
 	case AST_WHILE: {
@@ -271,7 +273,7 @@ compile_loop:
 	}
 }
 
-static void
+INLINE void
 print_defines(void)
 {
 	wln(DEFINE " WORD_SIZE  8");
@@ -397,7 +399,7 @@ print_dmp_i64(void)
 	wtln("ret");
 }
 
-static void
+INLINE void
 print_exit(u8 code)
 {
 	wtln("mov rax, SYS_EXIT");
@@ -410,13 +412,13 @@ print_exit(u8 code)
 	wtln("syscall");
 }
 
-static void
+INLINE void
 print_data_section(void)
 {
 	wln(SECTION_DATA_WRITEABLE);
 }
 
-static void
+INLINE void
 print_bss_section(void)
 {
 	wln(SECTION_BSS_WRITEABLE);

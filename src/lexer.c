@@ -10,12 +10,12 @@
 DECLARE_STATIC(loc, LOC);
 
 const char *KEYWORDS[KEYWORDS_SIZE] = {
-	[TOKEN_IF] = "if",
-	[TOKEN_ELSE] = "else",
+	[TOKEN_IF]		= "if",
+	[TOKEN_ELSE]	= "else",
 	[TOKEN_WHILE] = "while",
-	[TOKEN_DROP] = "drop",
-	[TOKEN_DO] = "do",
-	[TOKEN_END] = "end"
+	[TOKEN_DROP]	= "drop",
+	[TOKEN_DO]		= "do",
+	[TOKEN_END]		= "end"
 };
 
 const char *
@@ -49,7 +49,7 @@ loc_to_str(const loc_t *loc)
 	const str_t file_path = fileid(loc->file_id).file_path;
 	const size_t len = file_path.len
 		+ 11 * 2 // two 32bit integers
-		+ 3      // 3 colons
+		+ 3			 // 3 colons
 		+ 1;		 // \0
 
 	char *ret = calloc_string(len);
