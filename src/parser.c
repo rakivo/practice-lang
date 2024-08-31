@@ -48,6 +48,9 @@ ast_t
 ast_token(Parser *parser, const token_t *token, bool rec)
 {
 	switch (token->kind) {
+	case TOKEN_MACRO: {
+	} break;
+
 	case TOKEN_WHILE: {
 		if (!rec) {
 			while_count = 0;
@@ -188,12 +191,12 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_DROP: {
-		ast_t ast = make_ast(0, token->loc_id, ++next, AST_DROP,
-			.push_stmt = {
-				.value_kind = VALUE_KIND_INTEGER,
-				.integer = parse_int(token->str),
-			}
-		);
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_DROP, .drop_stmt = {0});
+		return ast;
+	} break;
+
+	case TOKEN_DUP: {
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_DUP, .dup_stmt = {0});
 		return ast;
 	} break;
 

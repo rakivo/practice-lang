@@ -30,6 +30,9 @@ typedef enum {
 	VALUE_KIND_STRING,
 } value_kind_t;
 
+const char *
+value_kind_to_str_pretty(value_kind_t kind);
+
 typedef struct {} plus_stmt_t;
 typedef struct {} minus_stmt_t;
 typedef struct {} div_stmt_t;
@@ -39,6 +42,7 @@ typedef struct {} dot_stmt_t;
 typedef struct {} less_stmt_t;
 typedef struct {} greater_stmt_t;
 typedef struct {} drop_stmt_t;
+typedef struct {} dup_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
@@ -65,6 +69,7 @@ typedef enum {
 	AST_IF,
 	AST_WHILE,
 	AST_DOT,
+	AST_DUP,
 	AST_PUSH,
 	AST_MUL,
 	AST_DIV,
@@ -96,6 +101,7 @@ typedef struct {
 		greater_stmt_t greater_stmt;
 		while_stmt_t while_stmt;
 		drop_stmt_t drop_stmt;
+		dup_stmt_t dup_stmt;
 	};
 } ast_t;
 

@@ -43,12 +43,10 @@
 #endif // FASM
 
 static FILE *stream = NULL;
-static size_t stack_size = 0;
+
 static size_t label_counter = 0;
 static size_t while_label_counter = 0;
 static size_t string_literal_counter = 0;
-static size_t last_integer_push_value = 0;
-static value_kind_t last_value_kind = VALUE_KIND_POISONED;
 
 static void
 compile_ast(const ast_t *ast);
@@ -90,11 +88,58 @@ compile_block(ast_t ast)
 {
 	while (ast.ast_id < asts_len) {
 		compile_ast(&ast);
-		ast = astid(ast.next);
-		if (ast.next < 0) {
-			compile_ast(&ast);
-			break;
-		}
+		if (ast.next < 0) break;
+		else ast = astid(ast.next);
+	}
+}
+
+#define MAX_STACK_TYPES_CAP (1024 * 8)
+
+static size_t stack_types_size = 0;
+static value_kind_t stack_types[MAX_STACK_TYPES_CAP];
+
+INLINE void stack_add_type(value_kind_t type)
+{
+	if (unlikely(stack_types_size + 1 >= MAX_STACK_TYPES_CAP)) {
+		eprintf("EMERGENCY CRASH, STACK IS TOO BIG");
+		exit(1);
+	}
+
+	stack_types[stack_types_size++] = type;
+}
+
+INLINE void stack_pop(void)
+{
+	stack_types_size--;
+}
+
+// Check the stack size and types of values on the stack before performing a binop.
+INLINE void
+binintop_stack_size_and_type_check(const char *binop, const ast_t *ast)
+{
+	if (stack_types_size < 2) {
+		report_error("%s error: `%s` stack underflow, bruv",
+								 loc_to_str(&locid(ast->loc_id)), binop);
+	} else if (stack_types[stack_types_size - 1] != VALUE_KIND_INTEGER
+				 ||	 stack_types[stack_types_size - 2] != VALUE_KIND_INTEGER)
+	{
+		report_error("%s error: `%s` expected two integers on the stack, but got: `%s` and `%s`",
+								 loc_to_str(&locid(ast->loc_id)), binop,
+								 value_kind_to_str_pretty(stack_types[stack_types_size - 2]),
+								 value_kind_to_str_pretty(stack_types[stack_types_size - 1]));
+	}
+}
+
+INLINE void
+check_for_integer_on_the_stack(const char *what, const char *msg, const ast_t *ast)
+{
+	if (stack_types_size < 1) {
+		report_error("%s error: `%s` with an empty stack", what, loc_to_str(&locid(ast->loc_id)));
+	} else if (stack_types[stack_types_size - 1] != VALUE_KIND_INTEGER) {
+		report_error("%s error: %s, but got: %s",
+								 loc_to_str(&locid(ast->loc_id)),
+								 msg,
+								 value_kind_to_str_pretty(stack_types[stack_types_size - 1]));
 	}
 }
 
@@ -103,7 +148,7 @@ compile_block(ast_t ast)
 	wtln("pop rbx"); \
 	wtln("mov rax, qword [rsp]"); \
 	wtln(__VA_ARGS__); \
-	wtln("mov [rsp], rax"); \
+	wtln("mov [rsp], rax");
 
 static void
 compile_ast(const ast_t *ast)
@@ -114,9 +159,10 @@ compile_ast(const ast_t *ast)
 
 	switch (ast->ast_kind) {
 	case AST_IF: {
-		if (stack_size < 1) {
-			report_error("%s error: `if` with empty stack", loc_to_str(&locid(ast->loc_id)));
-		}
+		check_for_integer_on_the_stack("if",
+																	 "expected last value on "
+																	 "the stack to be integer",
+																	 ast);
 
 		// If statement is empty
 		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
@@ -124,7 +170,7 @@ compile_ast(const ast_t *ast)
 		const size_t curr_label = label_counter++;
 
 		wtln("pop rax");
-
+		stack_pop();
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", curr_label);
 
@@ -165,97 +211,135 @@ compile_ast(const ast_t *ast)
 		wln("; -- COND END --");
 #endif
 
+		check_for_integer_on_the_stack("while",
+																	 "expected last value after performing `while` "
+																	 "condition on the stack to be integer",
+																	 ast);
+
 		wtln("pop rax");
+		stack_pop();
 		wtln("test rax, rax");
 
 		wtprintln("jz ._wdon_%zu", curr_label);
 
 compile_loop:
 
-		while_ast = astid(ast->while_stmt.body);
 		if (ast->while_stmt.body >= 0) {
+			while_ast = astid(ast->while_stmt.body);
 			compile_block(while_ast);
 		}
 
 		wtprintln("jmp ._while_%zu", curr_label);
-
 		wprintln("._wdon_%zu:", curr_label);
 	} break;
 
 	case AST_PUSH: {
 		switch (ast->push_stmt.value_kind) {
 		case VALUE_KIND_INTEGER: {
-			last_value_kind = VALUE_KIND_INTEGER;
-			last_integer_push_value = ast->push_stmt.integer;
 			wtprintln("mov rax, 0x%lX", ast->push_stmt.integer);
 			wtln("push rax");
+			stack_add_type(VALUE_KIND_INTEGER);
 		} break;
 
 		case VALUE_KIND_STRING: {
-			last_value_kind = VALUE_KIND_STRING;
 			scratch_buffer_genstrlen();
 			wtprintln("mov rax, %s", scratch_buffer_to_string());
 			wtln("push rax");
+			stack_add_type(VALUE_KIND_STRING);
 			string_literal_counter++;
 		} break;
 
 		case VALUE_KIND_POISONED: UNREACHABLE;
 		}
-
-		stack_size++;
 	} break;
 
 	case AST_PLUS: {
+		binintop_stack_size_and_type_check("+", ast);
 		print_binop("add rax, rbx");
+		stack_pop();
 	} break;
 
 	case AST_MINUS: {
+		binintop_stack_size_and_type_check("-", ast);
 		print_binop("sub rax, rbx");
+		stack_pop();
 	} break;
 
 	case AST_DIV: {
+		binintop_stack_size_and_type_check("/", ast);
 		wtln("xor edx, edx");
 		print_binop("div rbx");
 	} break;
 
 	case AST_MUL: {
+		binintop_stack_size_and_type_check("*", ast);
 		wtln("xor edx, edx");
 		print_binop("mul rbx");
 	} break;
 
 	case AST_EQUAL: {
-		wtln("mov rax, qword [rsp]");
-		wtln("mov rbx, qword [rsp + WORD_SIZE]");
+		binintop_stack_size_and_type_check("=", ast);
+		wtln("pop rax");
+		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rax, rbx");
 		wtln("sete al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
+		stack_pop();
+		stack_types[stack_types_size - 1] = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_LESS: {
-		wtln("mov rax, qword [rsp]");
-		wtln("mov rbx, qword [rsp + WORD_SIZE]");
+		binintop_stack_size_and_type_check("<", ast);
+		wtln("pop rax");
+		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rbx, rax");
 		wtln("setb al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
+		stack_pop();
+		stack_types[stack_types_size - 1] = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_GREATER: {
-		wtln("mov rax, qword [rsp]");
-		wtln("mov rbx, qword [rsp + WORD_SIZE]");
+		binintop_stack_size_and_type_check(">", ast);
+		wtln("pop rax");
+		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rbx, rax");
 		wtln("setg al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
+		stack_pop();
+		stack_types[stack_types_size - 1] = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_DROP: {
+		if (stack_types_size < 1) {
+			report_error("%s error: `drop` with an empty stack", loc_to_str(&locid(ast->loc_id)));
+		}
+
 		wtln("pop rax");
+		stack_pop();
+	} break;
+
+	case AST_DUP: {
+		if (stack_types_size < 1) {
+			report_error("%s error: `dup` with an empty stack", loc_to_str(&locid(ast->loc_id)));
+		}
+
+		wtln("mov rax, [rsp]");
+		wtln("push rax");
+		const value_kind_t last_type = stack_types[stack_types_size - 1];
+		stack_add_type(last_type);
 	} break;
 
 	case AST_DOT: {
-		switch (last_value_kind) {
+		if (stack_types_size < 1) {
+			report_error("%s error: `dot` with an empty stack", loc_to_str(&locid(ast->loc_id)));
+		}
+
+		const value_kind_t last_type = stack_types[stack_types_size - 1];
+		switch (last_type) {
 		case VALUE_KIND_INTEGER: {
 			wtln("mov rax, qword [rsp]");
 			wtln("mov r14, 0x1"); // mov 1 to r14 to print newline

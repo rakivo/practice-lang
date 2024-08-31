@@ -1,0 +1,6 @@
+macro add
+  a: int
+  b: int
+do a b + end
+
+1 2 add

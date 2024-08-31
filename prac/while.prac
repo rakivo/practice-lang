@@ -1,11 +1,5 @@
-# comment
-
-2 while 0 > do
-  3 while 0 > do
-    1 - .
-  end
-
+2 while dup 0 > do
+  3 while dup 0 > do 1 - . end
   drop
-
   1 -
 end

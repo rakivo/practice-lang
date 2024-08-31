@@ -130,6 +130,8 @@ typedef uint8_t  u8;
 #define WARNING(_string, ...) do { eprintf("WARNING: "); eprintf(_string, ##__VA_ARGS__); eprintf("\n"); } while(0)
 #define UNREACHABLE FATAL_ERROR("Should be unreachable");
 
+#define unlikely(x) (__builtin_expect(!!(x), 0))
+
 #define TODO FATAL_ERROR("TODO reached");
 #define UNSUPPORTED do { error_exit("Unsupported functionality"); } while (0)
 

@@ -12,8 +12,10 @@ DECLARE_STATIC(loc, LOC);
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF]		= "if",
 	[TOKEN_ELSE]	= "else",
+	[TOKEN_MACRO] = "macro",
 	[TOKEN_WHILE] = "while",
 	[TOKEN_DROP]	= "drop",
+	[TOKEN_DUP]   = "dup",
 	[TOKEN_DO]		= "do",
 	[TOKEN_END]		= "end"
 };
@@ -22,6 +24,8 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_MACRO:						return "TOKEN_MACRO";						break;
+	case TOKEN_DUP:							return "TOKEN_DUP";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;
 	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;
 	case TOKEN_LITERAL:					return "TOKEN_LITERAL";					break;
@@ -135,10 +139,12 @@ type_token(const char *str, const loc_t *loc)
 
 	const char first = str[0];
 
-	if (isdigit(first)) return TOKEN_INTEGER;
-	if (isalpha(first)) return TOKEN_LITERAL;
-
 	switch (first) {
+	case NUMBER_CHAR_CASE: return TOKEN_INTEGER; break;
+
+	case LOWER_CHAR_CASE:
+	case UPPER_CHAR_CASE: return TOKEN_LITERAL; break;
+
 	case '.': return TOKEN_DOT;							break;
 	case '>': return TOKEN_GREATER;					break;
 	case '<': return TOKEN_LESS;						break;
@@ -168,7 +174,7 @@ lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
 	}
 }
 
-static size_t utf8_char_len(unsigned char c)
+INLINE size_t utf8_char_len(unsigned char c)
 {
 	if ((u32) c < 0x80)    return 1;
 	if ((u32) c < 0x800)   return 2;

@@ -3,6 +3,16 @@
 
 DECLARE_STATIC(ast, AST);
 
+const char *
+value_kind_to_str_pretty(value_kind_t kind)
+{
+	switch (kind) {
+	case VALUE_KIND_STRING:		return "str";			 break;
+	case VALUE_KIND_INTEGER:	return "integer";	 break;
+	case VALUE_KIND_POISONED: return "poisoned"; break;
+	}
+}
+
 void
 print_ast(const ast_t *ast)
 {
@@ -16,7 +26,7 @@ print_ast(const ast_t *ast)
 	switch (ast->ast_kind) {
 	case AST_PUSH: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
-		printf("value_kind: %s\n", ast->push_stmt.value_kind == VALUE_KIND_INTEGER ? "int" : "str");
+		printf("value_kind: %s\n", value_kind_to_str_pretty(ast->push_stmt.value_kind));
 		if (ast->push_stmt.value_kind == VALUE_KIND_INTEGER)
 			printf("integer: %ld\n", ast->push_stmt.integer);
 		else
@@ -35,6 +45,7 @@ print_ast(const ast_t *ast)
 		printf("body: %d\n", ast->while_stmt.body);
 	} break;
 
+	case AST_DUP:			 printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_DROP:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
@@ -52,6 +63,7 @@ const char *
 ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
+	case AST_DUP:				return "AST_DUP";				break;
 	case AST_DROP:			return "AST_DROP";			break;
 	case AST_IF:				return "AST_IF";				break;
 	case AST_POISONED:	return "AST_POISONED";	break;
