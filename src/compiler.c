@@ -91,16 +91,12 @@ INLINE void compile_block(ast_t ast)
 	}
 }
 
-INLINE void
-print_last_two(const char *r1, const char *r2)
-{
-	wtprintln("mov %s, qword [rsp]", r1);
-	wtprintln("mov %s, qword [rsp + WORD_SIZE]", r2);
-}
-
 // Perform binary operation with rax, rbx
-#define print_binop_and_mov_to_stack(...) \
-	print_last_two("rbx", "rax"); wtln(__VA_ARGS__); wtln("push rax");
+#define print_binop(...) \
+	wtln("pop rbx"); \
+	wtln("mov rax, qword [rsp]"); \
+	wtln(__VA_ARGS__); \
+	wtln("mov [rsp], rax"); \
 
 static void
 compile_ast(const ast_t *ast)
@@ -199,25 +195,21 @@ compile_loop:
 	} break;
 
 	case AST_PLUS: {
-		print_binop_and_mov_to_stack("add rax, rbx");
+		print_binop("add rax, rbx");
 	} break;
 
 	case AST_MINUS: {
-		// print_binop_and_mov_to_stack("sub rax, rbx");
-		wtln("pop rbx");
-		wtln("mov rax, qword [rsp]");
-		wtln("sub rax, rbx");
-		wtln("mov [rsp], rax");
+		print_binop("sub rax, rbx");
 	} break;
 
 	case AST_DIV: {
 		wtln("xor edx, edx");
-		print_binop_and_mov_to_stack("div rbx");
+		print_binop("div rbx");
 	} break;
 
 	case AST_MUL: {
 		wtln("xor edx, edx");
-		print_binop_and_mov_to_stack("mul rbx");
+		print_binop("mul rbx");
 	} break;
 
 	case AST_EQUAL: {
