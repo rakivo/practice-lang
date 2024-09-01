@@ -41,23 +41,88 @@ static bool is_else = false;
 static bool cond_is_not_empty = false;
 
 static size_t if_count = 0;
-static size_t while_count = 0;
 static size_t else_count = 0;
 
 ast_t
 ast_token(Parser *parser, const token_t *token, bool rec)
 {
 	switch (token->kind) {
+	case TOKEN_PROC: {
+		// Skip `proc` keyword
+		token_idx++;
+
+		if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+			report_error("%s error: proc without a name", loc_to_str(&locid(token->loc_id)));
+		}
+
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_PROC,
+			.proc_stmt = {
+				.name = parser->ts[token_idx++],
+				.args = NULL,
+				.body = -1,
+			}
+		);
+
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx++];
+
+			if (token_.kind == TOKEN_DO) {
+				break;
+			}
+
+			const i32 kind_ = value_kind_try_from_str(token_.str);
+			if (kind_ < 0) {
+				report_error("%s error: invalid type: %s", loc_to_str(&locid(token_.loc_id)), token_.str);
+			}
+
+			const value_kind_t kind = (value_kind_t) kind_;
+
+			if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
+			}
+
+			const proc_arg_t proc_arg = {
+				.kind = kind,
+				.loc_id = token_.loc_id,
+				.name = parser->ts[token_idx++].str
+			};
+
+			vec_add(ast.proc_stmt.args, proc_arg);
+		}
+
+		size_t token_count = 0;
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx];
+			if (token_.kind == TOKEN_END) {
+				break;
+			} else if (token_count == 0) {
+				ast.proc_stmt.body = next;
+			}
+
+			const ast_t ast = ast_token(parser, &parser->ts[token_idx++], true);
+			append_ast(ast);
+			token_count++;
+		}
+
+		if (last_ast.next > 0) {
+			ast.next = last_ast.next;
+		} else {
+			ast.next = next;
+		}
+
+		// indicate the end of the body
+		last_ast.next = -1;
+
+		return ast;
+	} break;
+
 	case TOKEN_MACRO: {
 	} break;
 
 	case TOKEN_WHILE: {
 		if (!rec) {
-			while_count = 0;
 			cond_is_not_empty = false;
 		}
-
-		while_count++;
 
 		// Skip `while` keyword
 		token_idx++;
@@ -179,7 +244,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_DO: {
-		report_error("%s error: do outside of while scope", loc_to_str(&locid(token->loc_id)));
+		report_error("%s error: do without while or proc context", loc_to_str(&locid(token->loc_id)));
 	} break;
 
 	case TOKEN_ELSE: {
@@ -187,7 +252,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_END: {
-		report_error("%s error: no matching if or do found", loc_to_str(&locid(token->loc_id)));
+		report_error("%s error: no matching if, proc or do found", loc_to_str(&locid(token->loc_id)));
 	} break;
 
 	case TOKEN_DROP: {
@@ -223,7 +288,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_LITERAL: {
-		report_error("%s error: unexpected literal: '%s'", loc_to_str(&locid(token->loc_id)), token->str);
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_LITERAL, .literal = { .str = token->str });
+		return ast;
 	} break;
 
 	case TOKEN_EQUAL: {

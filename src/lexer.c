@@ -17,6 +17,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_DROP]	= "drop",
 	[TOKEN_DUP]   = "dup",
 	[TOKEN_DO]		= "do",
+	[TOKEN_PROC]  = "proc",
 	[TOKEN_END]		= "end"
 };
 
@@ -25,6 +26,7 @@ token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
 	case TOKEN_MACRO:						return "TOKEN_MACRO";						break;
+	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;
 	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;

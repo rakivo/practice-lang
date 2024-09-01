@@ -16,6 +16,7 @@ typedef enum {
 	TOKEN_ELSE,
 	TOKEN_DUP,
 	TOKEN_DROP,
+	TOKEN_PROC,
 	TOKEN_MACRO,
 	TOKEN_END,
 

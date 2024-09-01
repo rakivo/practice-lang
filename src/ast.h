@@ -25,10 +25,18 @@
 typedef i16 ast_id_t;
 
 typedef enum {
+	// Reserved first variant
 	VALUE_KIND_POISONED,
+
 	VALUE_KIND_INTEGER,
 	VALUE_KIND_STRING,
+
+	// Reserved last variant
+	VALUE_KIND_LAST,
 } value_kind_t;
+
+i32
+value_kind_try_from_str(const char *str);
 
 const char *
 value_kind_to_str_pretty(value_kind_t kind);
@@ -37,13 +45,31 @@ typedef struct {} plus_stmt_t;
 typedef struct {} minus_stmt_t;
 typedef struct {} div_stmt_t;
 typedef struct {} mul_stmt_t;
-
 typedef struct {} dot_stmt_t;
 typedef struct {} less_stmt_t;
 typedef struct {} greater_stmt_t;
 typedef struct {} drop_stmt_t;
 typedef struct {} dup_stmt_t;
 typedef struct {} equal_stmt_t;
+
+typedef struct {
+	value_kind_t kind;
+	loc_id_t loc_id;
+	const char *name;
+} proc_arg_t;
+
+const char *
+proc_arg_to_str(const proc_arg_t *proc_arg);
+
+typedef struct {
+	token_t name;
+	proc_arg_t *args;
+	ast_id_t body;
+} proc_stmt_t;
+
+typedef struct {
+	const char *str;
+} literal_t;
 
 typedef struct {
 	value_kind_t value_kind;
@@ -67,6 +93,7 @@ typedef struct {
 typedef enum {
 	AST_POISONED,
 	AST_IF,
+	AST_PROC,
 	AST_WHILE,
 	AST_DOT,
 	AST_DUP,
@@ -79,6 +106,7 @@ typedef enum {
 	AST_EQUAL,
 	AST_DROP,
 	AST_GREATER,
+	AST_LITERAL,
 } ast_kind_t;
 
 typedef struct {
@@ -102,6 +130,8 @@ typedef struct {
 		while_stmt_t while_stmt;
 		drop_stmt_t drop_stmt;
 		dup_stmt_t dup_stmt;
+		proc_stmt_t proc_stmt;
+		literal_t literal;
 	};
 } ast_t;
 

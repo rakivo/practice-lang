@@ -18,7 +18,7 @@ all: $(BUILD_DIR)/langc
 $(BUILD_DIR):
 	mkdir -p $@
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(COMMON_H) | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_FILES) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) $(WARN_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/langc: $(ROOT_FILE) $(OBJ_FILES) $(BUILD_DIR)

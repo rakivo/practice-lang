@@ -1,0 +1,7 @@
+proc print
+  int a
+do
+  a .
+end
+
+69 print
