@@ -7,7 +7,7 @@
 
 // #define PRINT_TOKENS
 // #define PRINT_ASTS
-// #define DEBUG 1
+#define DEBUG 1
 
 typedef int64_t i64;
 typedef int32_t i32;
@@ -24,11 +24,7 @@ typedef uint8_t  u8;
 	lower##_id_t upper##S_SIZE = 0 \
 
 // Report error, release memory and exit
-#ifdef DEBUG
-	#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
-#else
-	#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
-#endif // DEBUG
+#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
 
 /* ------------------------------------------------------- */
 

@@ -12,7 +12,6 @@ DECLARE_STATIC(loc, LOC);
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF]		= "if",
 	[TOKEN_ELSE]	= "else",
-	[TOKEN_CALL]  = "call",
 	[TOKEN_WHILE] = "while",
 	[TOKEN_DROP]	= "drop",
 	[TOKEN_DUP]   = "dup",
@@ -25,7 +24,6 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
-	case TOKEN_CALL:						return "TOKEN_CALL";						break;
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;

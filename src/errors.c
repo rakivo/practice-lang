@@ -20,8 +20,9 @@ void eprintf(const char *format, ...)
 	va_end(arglist);
 }
 
-NORETURN void report_error_(const char *func, const char *file,
-														const size_t line, const char *format, ...)
+NORETURN void
+report_error_(const char *func, const char *file,
+							const size_t line, const char *format, ...)
 {
 #ifdef DEBUG
 	eprintf("%s:%d: in %s(...)\n", file, line, func);

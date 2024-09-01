@@ -52,7 +52,6 @@ typedef struct {} greater_stmt_t;
 typedef struct {} drop_stmt_t;
 typedef struct {} dup_stmt_t;
 typedef struct {} equal_stmt_t;
-typedef struct {} call_stmt_t;
 
 typedef struct {
 	value_kind_t kind;
@@ -72,6 +71,10 @@ typedef struct {
 typedef struct {
 	const char *str;
 } literal_t;
+
+typedef struct {
+	const char *str;
+} call_t;
 
 typedef struct {
 	value_kind_t value_kind;
@@ -134,7 +137,7 @@ typedef struct {
 		drop_stmt_t drop_stmt;
 		dup_stmt_t dup_stmt;
 		proc_stmt_t proc_stmt;
-		call_stmt_t call_stmt;
+		call_t call;
 		literal_t literal;
 	};
 } ast_t;

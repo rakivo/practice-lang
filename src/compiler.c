@@ -54,6 +54,8 @@ static size_t string_literal_counter = 0;
 static size_t stack_types_size = 0;
 static value_kind_t stack_types[MAX_STACK_TYPES_CAP];
 
+static const char **strs = NULL;
+
 static void
 compile_ast(Compiler *ctx, const ast_t *ast);
 
@@ -300,42 +302,39 @@ compile_loop:
 				}
 			}
 
-			if (arg == NULL) goto literal_undefined_symbol;
+			if (arg == NULL) {
+				report_error("%s error: undefined symbol: `%s`",
+										 loc_to_str(&locid(ast->loc_id)),
+										 ast->literal.str);
+			}
 
 			// Compute the index of the value from the end of the stack
 			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - 1 - arg_idx;
 
-			wtprintln("mov rax, [rsp - %zu * WORD_SIZE]", stack_idx);
+			wtprintln("mov rax, [rsp + %zu * WORD_SIZE]", stack_idx);
 			wtln("push rax");
 
 			stack_add_type(ctx, arg->kind);
-			return;
 		} else {
 			const i32 value_idx = shgeti(ctx->values_map, ast->literal.str);
-			if (value_idx == -1) goto literal_undefined_symbol;
-
+			if (value_idx == -1) {
+				report_error("%s error: undefined symbol: `%s`",
+										 loc_to_str(&locid(ast->loc_id)),
+										 ast->literal.str);
+			}
 			wtprintln("push __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
 			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
-			return;
 		}
-
-literal_undefined_symbol:
-		report_error("%s error: undefined symbol: `%s`",
-								 loc_to_str(&locid(ast->loc_id)),
-								 ast->literal.str);
 	} break;
 
 	case AST_CALL: {
-		value_kind_t last_type = check_stack_for_last(ctx, "call", ast);
-		if (last_type != VALUE_KIND_FUNCTION_POINTER) {
-			report_error("%s error: expected last element on the stack "
-									 "to be function pointer, but got `%s`",
+		const i32 value_idx = shgeti(ctx->values_map, ast->call.str);
+		if (value_idx == -1) {
+			report_error("%s error: undefined symbol: `%s`",
 									 loc_to_str(&locid(ast->loc_id)),
-									 value_kind_to_str_pretty(last_type));
+									 ast->call.str);
 		}
-
-		wtln("pop rax");
-		wtln("call rax");
+		wtprintln("call __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
 	} break;
 
 	case AST_PUSH: {
@@ -352,6 +351,7 @@ literal_undefined_symbol:
 			wtln("push rax");
 			stack_add_type(ctx, VALUE_KIND_STRING);
 			string_literal_counter++;
+			vec_add(strs, ast->push_stmt.str);
 		} break;
 
 		case VALUE_KIND_FUNCTION_POINTER: UNREACHABLE;
@@ -653,8 +653,8 @@ compiler_compile(Compiler *compiler)
 
 			wprintln("__%s__:", ast.proc_stmt.name.str);
 
-			// Pop return address into the rbp
-			wtln("pop rbp");
+			wtln("push rbp");
+			wtln("mov rbp, rsp");
 
 			shput(compiler->values_map, ast.proc_stmt.name.str, ast.ast_id);
 
@@ -665,8 +665,8 @@ compiler_compile(Compiler *compiler)
 				compile_block(compiler, proc_ast);
 			}
 
-			// Get the return address from the rbp
-			wtln("push rbp");
+			wtln("mov rsp, rbp");
+			wtln("pop rbp");
 			wtln("ret");
 
 			compiler->proc_ctx.stmt = NULL;
@@ -690,33 +690,26 @@ compiler_compile(Compiler *compiler)
 
 	string_literal_counter = 0;
 
-	ast = astid(compiler->ast_cur);
-	while (ast.next && ast.next <= ASTS_SIZE) {
-		if (ast.ast_kind == AST_PUSH && ast.push_stmt.value_kind == VALUE_KIND_STRING) {
+	FOREACH(const char *, str, strs) {
+		scratch_buffer_clear();
+		scratch_buffer_genstr();
+		char *strdb = scratch_buffer_copy();
+		size_t len = strlen(str);
+		if (len > 2 && str[len - 3] == '\\' && str[len - 2] == 'n') {
 			scratch_buffer_clear();
+			scratch_buffer_append(str);
 
-			scratch_buffer_genstr();
-			char *strdb = scratch_buffer_copy();
+			scratch_buffer.str[len - 3] = '"';
+			scratch_buffer.str[len - 2] = '\0';
 
-			size_t len = strlen(ast.push_stmt.str);
-			if (len > 2 && ast.push_stmt.str[len - 3] == '\\' && ast.push_stmt.str[len - 2] == 'n') {
-				scratch_buffer_clear();
-				scratch_buffer_append(ast.push_stmt.str);
-
-				scratch_buffer.str[len - 3] = '"';
-				scratch_buffer.str[len - 2] = '\0';
-
-				wprintln("%s db %s, NEW_LINE", strdb, scratch_buffer_to_string());
-			} else {
-				wprintln("%s db %s", strdb, ast.push_stmt.str);
-			}
-
-			scratch_buffer_genstrlen();
-			wprintln("%s " COMPTIME_EQU " $ - %s", scratch_buffer_to_string(), strdb);
-			string_literal_counter++;
+			wprintln("%s db %s, NEW_LINE", strdb, scratch_buffer_to_string());
+		} else {
+			wprintln("%s db %s", strdb, str);
 		}
 
-		ast = astid(ast.next);
+		scratch_buffer_genstrlen();
+		wprintln("%s " COMPTIME_EQU " $ - %s", scratch_buffer_to_string(), strdb);
+		string_literal_counter++;
 	}
 
 	print_bss_section();

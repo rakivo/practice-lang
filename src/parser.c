@@ -293,14 +293,21 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		return ast;
 	} break;
 
-	case TOKEN_CALL: {
-		ast_t ast = make_ast(0, token->loc_id, ++next, AST_CALL, .call_stmt = {0});
-		return ast;
-	} break;
-
 	case TOKEN_LITERAL: {
-		ast_t ast = make_ast(0, token->loc_id, ++next, AST_LITERAL, .literal = { .str = token->str });
-		return ast;
+		scratch_buffer_clear();
+		scratch_buffer_append(token->str);
+
+		bool is_call = false;
+		if (scratch_buffer.str[scratch_buffer.len - 1] == '!') {
+			scratch_buffer.str[--scratch_buffer.len] = '\0';
+			is_call = true;
+		}
+
+		if (is_call) {
+			return (ast_t) make_ast(0, token->loc_id, ++next, AST_CALL, .call = { .str = scratch_buffer_copy() });
+		} else {
+			return (ast_t) make_ast(0, token->loc_id, ++next, AST_LITERAL, .literal = { .str = token->str });
+		}
 	} break;
 
 	case TOKEN_EQUAL: {

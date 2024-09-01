@@ -1,11 +1,12 @@
+proc hello do
+  "hello\n" . drop
+end
+
 proc print
   int a
 do
-  3 while dup 0 > do 1 - . end drop
-
-  a a = if
-    420 .
-  end
+  3 while dup 0 > do 1 - hello! end drop
+  a dup = if 420 . end
 end
 
-69 print call
+69 print!
