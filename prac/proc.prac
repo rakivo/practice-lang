@@ -1,6 +1,8 @@
 proc print
   int a
 do
+  3 while dup 0 > do 1 - . end drop
+
   a a = if
     420 .
   end
