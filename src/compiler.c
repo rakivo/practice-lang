@@ -86,42 +86,71 @@ compile_block(Compiler *ctx, ast_t ast)
 }
 
 INLINE
-void stack_add_type(value_kind_t type)
+void stack_add_type(Compiler *ctx, value_kind_t type)
 {
-	if (unlikely(stack_size + 1 >= MAX_STACK_TYPES_CAP)) {
-		eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
-		exit(1);
+	if (ctx->proc_ctx.stmt != NULL) {
+		if (unlikely(ctx->proc_ctx.stack_size + 1 >= MAX_STACK_TYPES_CAP)) {
+			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
+			exit(1);
+		}
+		ctx->proc_ctx.stack_types[ctx->proc_ctx.stack_size++] = type;
+	} else {
+		if (unlikely(stack_size + 1 >= MAX_STACK_TYPES_CAP)) {
+			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
+			exit(1);
+		}
+		stack_types[stack_size++] = type;
 	}
-	stack_types[stack_size++] = type;
 }
 
 INLINE
-void stack_pop(void)
+void stack_pop(Compiler *ctx)
 {
-	stack_size--;
+	if (ctx->proc_ctx.stmt != NULL)
+		ctx->proc_ctx.stack_size--;
+	else
+		stack_size--;
 }
 
 INLINE const value_kind_t *
-get_type_from_end(size_t idx)
+stack_at(const Compiler *ctx, size_t idx)
 {
-	const i32 size = stack_size;
-	if (size - idx - 1 < 0) return NULL;
-	return &stack_types[size - idx - 1];
+	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
+}
+
+INLINE value_kind_t *
+stack_at_mut(Compiler *ctx, size_t idx)
+{
+	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
+}
+
+INLINE size_t
+get_stack_size(const Compiler *ctx)
+{
+	return ctx->proc_ctx.stmt == NULL ? stack_size : ctx->proc_ctx.stack_size;
+}
+
+INLINE const value_kind_t *
+get_type_from_end(const Compiler *ctx, size_t idx)
+{
+	const i32 size = get_stack_size(ctx) - idx - 1;
+	if (size < 0) return NULL;
+	return stack_at(ctx, size);
 }
 
 // Check the stack size and types of values on the stack before performing a binop.
 INLINE void
-check_for_two_integers_on_the_stack(const char *op, const ast_t *ast)
+check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const ast_t *ast)
 {
-	const value_kind_t *first_type = get_type_from_end(1);
-	const value_kind_t *second_type = get_type_from_end(0);
+	const value_kind_t *first_type = get_type_from_end(ctx, 1);
+	const value_kind_t *second_type = get_type_from_end(ctx, 0);
 
 	if (second_type == NULL || first_type == NULL) {
 		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
 	} else if (*first_type != VALUE_KIND_INTEGER
 				 ||  *second_type != VALUE_KIND_INTEGER)
 	{
-		report_error("%s error: %s,  expected two integers on the stack, but got: %s and %s",
+		report_error("%s error: expected two integers on the stack, but got: %s and %s",
 								 loc_to_str(&locid(ast->loc_id)),
 								 value_kind_to_str_pretty(*second_type),
 								 value_kind_to_str_pretty(*first_type));
@@ -129,9 +158,9 @@ check_for_two_integers_on_the_stack(const char *op, const ast_t *ast)
 }
 
 INLINE void
-check_for_integer_on_the_stack(const char *op, const char *msg, const ast_t *ast)
+check_for_integer_on_the_stack(const Compiler *ctx, const char *op, const char *msg, const ast_t *ast)
 {
-	const value_kind_t *type = get_type_from_end(0);
+	const value_kind_t *type = get_type_from_end(ctx, 0);
 
 	if (type == NULL) {
 		report_error("%s error: `%s` with an empty stack", loc_to_str(&locid(ast->loc_id)), op);
@@ -144,9 +173,9 @@ check_for_integer_on_the_stack(const char *op, const char *msg, const ast_t *ast
 }
 
 INLINE value_kind_t
-check_stack_for_last(const char *op, const ast_t *ast)
+check_stack_for_last(const Compiler *ctx, const char *op, const ast_t *ast)
 {
-	const value_kind_t *type = get_type_from_end(0);
+	const value_kind_t *type = get_type_from_end(ctx, 0);
 	if (type == NULL) report_error("%s error: `%s` with an empty stack", loc_to_str(&locid(ast->loc_id)), op);
 	return *type;
 }
@@ -171,7 +200,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 	case AST_PROC: {} break;
 
 	case AST_IF: {
-		check_for_integer_on_the_stack("if",
+		check_for_integer_on_the_stack(ctx, "if",
 																	 "expected last value on "
 																	 "the stack to be integer",
 																	 ast);
@@ -184,8 +213,8 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		wtln("pop rax");
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", curr_label);
-		stack_pop();
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
+		stack_pop(ctx);
+		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.stack_size--;
 
 		ast_t if_ast = astid(ast->if_stmt.then_body);
 		if (ast->if_stmt.then_body >= 0) {
@@ -224,7 +253,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		wln("; -- COND END --");
 #endif
 
-		check_for_integer_on_the_stack("while",
+		check_for_integer_on_the_stack(ctx, "while",
 																	 "expected last value after performing `while` "
 																	 "condition on the stack to be integer",
 																	 ast);
@@ -232,8 +261,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		wtln("pop rax");
 		wtln("test rax, rax");
 
-		stack_pop();
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
+		stack_pop(ctx);
 
 		wtprintln("jz ._wdon_%zu", curr_label);
 
@@ -267,14 +295,13 @@ compile_loop:
 			}
 
 			// Compute the index of the value from the end of the stack
-			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.values_pushed + 1;
+			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
 			// const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx;
 
 			wtprintln("mov rax, [rsp + %zu * WORD_SIZE]", stack_idx);
 			wtln("push rax");
 
-			ctx->proc_ctx.values_pushed++;
-			stack_add_type(arg->kind);
+			stack_add_type(ctx, arg->kind);
 		} else {
 			const i32 value_idx = shgeti(ctx->values_map, ast->literal.str);
 			if (value_idx == -1) {
@@ -283,7 +310,7 @@ compile_loop:
 										 ast->literal.str);
 			}
 			wtprintln("push __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
-			stack_add_type(VALUE_KIND_FUNCTION_POINTER);
+			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
 		}
 	} break;
 
@@ -305,9 +332,9 @@ compile_loop:
 										 ast->literal.str);
 			}
 
-			// printf("%zu\n", ctx->proc_ctx.values_pushed);
+			// printf("%zu\n", ctx->proc_ctx.stack_size);
 			// Compute the index of the value from the end of the stack
-			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.values_pushed + 1;
+			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
 			wtprintln("call [rsp + %zu * WORD_SIZE]", stack_idx);
 		} else {
 			const i32 value_idx = shgeti(ctx->values_map, ast->call.str);
@@ -321,20 +348,18 @@ compile_loop:
 	} break;
 
 	case AST_PUSH: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed++;
-
 		switch (ast->push_stmt.value_kind) {
 		case VALUE_KIND_INTEGER: {
 			wtprintln("mov rax, 0x%lX", ast->push_stmt.integer);
 			wtln("push rax");
-			stack_add_type(VALUE_KIND_INTEGER);
+			stack_add_type(ctx, VALUE_KIND_INTEGER);
 		} break;
 
 		case VALUE_KIND_STRING: {
 			scratch_buffer_genstr();
 			wtprintln("mov rax, %s", scratch_buffer_to_string());
 			wtln("push rax");
-			stack_add_type(VALUE_KIND_STRING);
+			stack_add_type(ctx, VALUE_KIND_STRING);
 			string_literal_counter++;
 			vec_add(strs, ast->push_stmt.str);
 		} break;
@@ -346,89 +371,80 @@ compile_loop:
 	} break;
 
 	case AST_PLUS: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack("+", ast);
+		check_for_two_integers_on_the_stack(ctx, "+", ast);
 		print_binop("add rax, rbx");
-		stack_pop();
+		stack_pop(ctx);
 	} break;
 
 	case AST_MINUS: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack("-", ast);
+		check_for_two_integers_on_the_stack(ctx, "-", ast);
 		print_binop("sub rax, rbx");
-		stack_pop();
+		stack_pop(ctx);
 	} break;
 
 	case AST_DIV: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack("/", ast);
+		check_for_two_integers_on_the_stack(ctx, "/", ast);
 		wtln("xor edx, edx");
 		print_binop("div rbx");
 	} break;
 
 	case AST_MUL: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack("*", ast);
+		check_for_two_integers_on_the_stack(ctx, "*", ast);
 		wtln("xor edx, edx");
 		print_binop("mul rbx");
 	} break;
 
 	case AST_EQUAL: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack("=", ast);
+		check_for_two_integers_on_the_stack(ctx, "=", ast);
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rax, rbx");
 		wtln("sete al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
-		stack_pop();
+		stack_pop(ctx);
 		stack_types[stack_size - 1] = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_LESS: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack("<", ast);
+		check_for_two_integers_on_the_stack(ctx, "<", ast);
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rbx, rax");
 		wtln("setb al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
-		stack_pop();
+		stack_pop(ctx);
 		stack_types[stack_size - 1] = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_GREATER: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_for_two_integers_on_the_stack(">", ast);
+		check_for_two_integers_on_the_stack(ctx, ">", ast);
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rbx, rax");
 		wtln("setg al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
-		stack_pop();
+		stack_pop(ctx);
 		stack_types[stack_size - 1] = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_DROP: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed--;
-		check_stack_for_last("drop", ast);
+		check_stack_for_last(ctx, "drop", ast);
 		wtln("pop rax");
-		stack_pop();
+		stack_pop(ctx);
 	} break;
 
 	case AST_DUP: {
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.values_pushed++;
-		value_kind_t last_type = check_stack_for_last("dup", ast);
+		value_kind_t last_type = check_stack_for_last(ctx, "dup", ast);
 		wtln("mov rax, [rsp]");
 		wtln("push rax");
-		stack_add_type(last_type);
+		stack_add_type(ctx, last_type);
 	} break;
 
 	case AST_DOT: {
-		value_kind_t last_type = check_stack_for_last(".", ast);
+		value_kind_t last_type = check_stack_for_last(ctx, ".", ast);
 		switch (last_type) {
 		case VALUE_KIND_FUNCTION_POINTER:
 		case VALUE_KIND_INTEGER: {
@@ -628,7 +644,7 @@ new_compiler(ast_id_t ast_cur)
 		.values_map = NULL,
 		.proc_ctx = {
 			.stmt = NULL,
-			.values_pushed = 0,
+			.stack_size = 0,
 		},
 	};
 }
@@ -673,9 +689,9 @@ compiler_compile(Compiler *compiler)
 			}
 
 			// Clean the stack
-			while (compiler->proc_ctx.values_pushed > 0) {
+			while (compiler->proc_ctx.stack_size > 0) {
 				wtln("pop rax");
-				compiler->proc_ctx.values_pushed--;
+				compiler->proc_ctx.stack_size--;
 			}
 
 			wtln("mov rsp, rbp");
@@ -683,6 +699,7 @@ compiler_compile(Compiler *compiler)
 			wtln("ret");
 
 			compiler->proc_ctx.stmt = NULL;
+			compiler->proc_ctx.stack_size = 0;
 		}
 
 		ast = astid(ast.next);
