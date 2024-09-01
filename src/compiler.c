@@ -147,13 +147,9 @@ stack_size(const Compiler *ctx)
 INLINE const value_kind_t *
 get_type_from_end(const Compiler *ctx, size_t idx)
 {
-	if (ctx->proc_ctx.stmt != NULL) {
-		if (((i32) ctx->proc_ctx.stack_types_size - idx - 1) < 0) return NULL;
-		return &ctx->proc_ctx.stack_types[ctx->proc_ctx.stack_types_size - idx - 1];
-	} else {
-		if (((i32) stack_types_size - idx - 1) < 0) return NULL;;
-		return &stack_types[stack_types_size - idx - 1];
-	}
+	const i32 size = stack_size(ctx) - idx - 1;
+	if (size < 0) return NULL;
+	return stack_at(ctx, size);
 }
 
 // Check the stack size and types of values on the stack before performing a binop.
@@ -330,7 +326,7 @@ literal_undefined_symbol:
 	} break;
 
 	case AST_CALL: {
-		value_kind_t last_type = check_stack_for_last(ctx, ".", ast);
+		value_kind_t last_type = check_stack_for_last(ctx, "call", ast);
 		if (last_type != VALUE_KIND_FUNCTION_POINTER) {
 			report_error("%s error: expected last element on the stack "
 									 "to be function pointer, but got `%s`",
