@@ -12,7 +12,7 @@ DECLARE_STATIC(loc, LOC);
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF]		= "if",
 	[TOKEN_ELSE]	= "else",
-	[TOKEN_MACRO] = "macro",
+	[TOKEN_CALL]  = "call",
 	[TOKEN_WHILE] = "while",
 	[TOKEN_DROP]	= "drop",
 	[TOKEN_DUP]   = "dup",
@@ -25,7 +25,7 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
-	case TOKEN_MACRO:						return "TOKEN_MACRO";						break;
+	case TOKEN_CALL:						return "TOKEN_CALL";						break;
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;
@@ -165,6 +165,8 @@ void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
 {
 	FOREACH(ss_t, ss, line) {
+		if (ss.str == NULL || *ss.str == '\0') continue;
+
 		const loc_t loc = (loc_t) {
 			.row = lexer->row + lexer->lines_skipped,
 			.col = ss.col,
@@ -203,7 +205,8 @@ split(char *input, char delim)
 
 	// do rtrim
 	while (isspace(input[len_])) {
-		input[len_--] = '\0';
+		input[len_] = '\0';
+		len_ -= 1;
 	}
 
 	// do ltrim

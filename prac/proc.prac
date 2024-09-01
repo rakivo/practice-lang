@@ -1,7 +1,9 @@
 proc print
   int a
 do
-  a .
+  a a = if
+    420 .
+  end
 end
 
-69 print
+69 print call

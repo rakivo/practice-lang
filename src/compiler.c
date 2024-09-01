@@ -51,8 +51,6 @@ static size_t label_counter = 0;
 static size_t while_label_counter = 0;
 static size_t string_literal_counter = 0;
 
-#define MAX_STACK_TYPES_CAP (1024 * 8)
-
 static size_t stack_types_size = 0;
 static value_kind_t stack_types[MAX_STACK_TYPES_CAP];
 
@@ -101,49 +99,103 @@ compile_block(Compiler *ctx, ast_t ast)
 	}
 }
 
-INLINE void stack_add_type(value_kind_t type)
+INLINE
+void stack_add_type(Compiler *ctx, value_kind_t type)
 {
-	if (unlikely(stack_types_size + 1 >= MAX_STACK_TYPES_CAP)) {
-		eprintf("EMERGENCY CRASH, STACK IS TOO BIG");
-		exit(1);
+	if (ctx->proc_ctx.stmt != NULL) {
+		if (unlikely(ctx->proc_ctx.stack_types_size + 1 >= MAX_STACK_TYPES_CAP)) {
+			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
+			exit(1);
+		}
+		ctx->proc_ctx.stack_types[ctx->proc_ctx.stack_types_size++] = type;
+	} else {
+		if (unlikely(stack_types_size + 1 >= MAX_STACK_TYPES_CAP)) {
+			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
+			exit(1);
+		}
+		stack_types[stack_types_size++] = type;
 	}
-
-	stack_types[stack_types_size++] = type;
 }
 
-INLINE void stack_pop(void)
+INLINE
+void stack_pop(Compiler *ctx)
 {
-	stack_types_size--;
+	if (ctx->proc_ctx.stmt != NULL)
+		ctx->proc_ctx.stack_types_size--;
+	else
+		stack_types_size--;
+}
+
+UNUSED INLINE const value_kind_t *
+stack_at(const Compiler *ctx, size_t idx)
+{
+	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
+}
+
+INLINE value_kind_t *
+stack_at_mut(Compiler *ctx, size_t idx)
+{
+	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
+}
+
+INLINE size_t
+stack_size(const Compiler *ctx)
+{
+	return ctx->proc_ctx.stmt == NULL ? stack_types_size : ctx->proc_ctx.stack_types_size;
+}
+
+INLINE const value_kind_t *
+get_type_from_end(const Compiler *ctx, size_t idx)
+{
+	if (ctx->proc_ctx.stmt != NULL) {
+		if (((i32) ctx->proc_ctx.stack_types_size - idx - 1) < 0) return NULL;
+		return &ctx->proc_ctx.stack_types[ctx->proc_ctx.stack_types_size - idx - 1];
+	} else {
+		if (((i32) stack_types_size - idx - 1) < 0) return NULL;;
+		return &stack_types[stack_types_size - idx - 1];
+	}
 }
 
 // Check the stack size and types of values on the stack before performing a binop.
 INLINE void
-binintop_stack_size_and_type_check(const char *binop, const ast_t *ast)
+check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const ast_t *ast)
 {
-	if (stack_types_size < 2) {
-		report_error("%s error: `%s` stack underflow, bruv",
-								 loc_to_str(&locid(ast->loc_id)), binop);
-	} else if (stack_types[stack_types_size - 1] != VALUE_KIND_INTEGER
-				 ||	 stack_types[stack_types_size - 2] != VALUE_KIND_INTEGER)
+	const value_kind_t *first_type = get_type_from_end(ctx, 1);
+	const value_kind_t *second_type = get_type_from_end(ctx, 0);
+
+	if (second_type == NULL || first_type == NULL) {
+		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
+	} else if (*first_type != VALUE_KIND_INTEGER
+				 ||  *second_type != VALUE_KIND_INTEGER)
 	{
-		report_error("%s error: `%s` expected two integers on the stack, but got: `%s` and `%s`",
-								 loc_to_str(&locid(ast->loc_id)), binop,
-								 value_kind_to_str_pretty(stack_types[stack_types_size - 2]),
-								 value_kind_to_str_pretty(stack_types[stack_types_size - 1]));
+		report_error("%s error: %s,  expected two integers on the stack, but got: %s and %s",
+								 loc_to_str(&locid(ast->loc_id)),
+								 value_kind_to_str_pretty(*second_type),
+								 value_kind_to_str_pretty(*first_type));
 	}
 }
 
 INLINE void
-check_for_integer_on_the_stack(const char *what, const char *msg, const ast_t *ast)
+check_for_integer_on_the_stack(const Compiler *ctx, const char *op, const char *msg, const ast_t *ast)
 {
-	if (stack_types_size < 1) {
-		report_error("%s error: `%s` with an empty stack", loc_to_str(&locid(ast->loc_id)), what);
-	} else if (stack_types[stack_types_size - 1] != VALUE_KIND_INTEGER) {
-		report_error("%s error: %s, but got: %s",
-								 loc_to_str(&locid(ast->loc_id)),
-								 msg,
-								 value_kind_to_str_pretty(stack_types[stack_types_size - 1]));
+	const value_kind_t *type = get_type_from_end(ctx, 0);
+
+	if (type == NULL) {
+		report_error("%s error: `%s` with an empty stack", loc_to_str(&locid(ast->loc_id)), op);
+	} else if (*type != VALUE_KIND_INTEGER) {
+			report_error("%s error: %s, but got: %s",
+									 loc_to_str(&locid(ast->loc_id)),
+									 msg,
+									 value_kind_to_str_pretty(*type));
 	}
+}
+
+INLINE value_kind_t
+check_stack_for_last(const Compiler *ctx, const char *op, const ast_t *ast)
+{
+	const value_kind_t *type = get_type_from_end(ctx, 0);
+	if (type == NULL) report_error("%s error: `%s` with an empty stack", loc_to_str(&locid(ast->loc_id)), op);
+	return *type;
 }
 
 // Perform binary operation with rax, rbx
@@ -166,7 +218,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 	case AST_PROC: {} break;
 
 	case AST_IF: {
-		check_for_integer_on_the_stack("if",
+		check_for_integer_on_the_stack(ctx, "if",
 																	 "expected last value on "
 																	 "the stack to be integer",
 																	 ast);
@@ -177,7 +229,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		const size_t curr_label = label_counter++;
 
 		wtln("pop rax");
-		stack_pop();
+		stack_pop(ctx);
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", curr_label);
 
@@ -218,13 +270,13 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		wln("; -- COND END --");
 #endif
 
-		check_for_integer_on_the_stack("while",
+		check_for_integer_on_the_stack(ctx, "while",
 																	 "expected last value after performing `while` "
 																	 "condition on the stack to be integer",
 																	 ast);
 
 		wtln("pop rax");
-		stack_pop();
+		stack_pop(ctx);
 		wtln("test rax, rax");
 
 		wtprintln("jz ._wdon_%zu", curr_label);
@@ -241,10 +293,10 @@ compile_loop:
 	} break;
 
 	case AST_LITERAL: {
-		if (ctx->proc_ctx != NULL) {
+		if (ctx->proc_ctx.stmt != NULL) {
 			size_t arg_idx = 0;
 			proc_arg_t *arg = NULL;
-			FOREACH_IDX(idx, proc_arg_t, proc_arg, ctx->proc_ctx->args) {
+			FOREACH_IDX(idx, proc_arg_t, proc_arg, ctx->proc_ctx.stmt->args) {
 				if (0 == strcmp(proc_arg.name, ast->literal.str)) {
 					arg = &proc_arg;
 					arg_idx = idx;
@@ -255,17 +307,19 @@ compile_loop:
 			if (arg == NULL) goto literal_undefined_symbol;
 
 			// Compute the index of the value from the end of the stack
-			const size_t stack_idx = vec_size(ctx->proc_ctx->args) - 1 - arg_idx;
+			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - 1 - arg_idx;
 
 			wtprintln("mov rax, [rsp - %zu * WORD_SIZE]", stack_idx);
 			wtln("push rax");
 
+			stack_add_type(ctx, arg->kind);
 			return;
 		} else {
 			const i32 value_idx = shgeti(ctx->values_map, ast->literal.str);
 			if (value_idx == -1) goto literal_undefined_symbol;
 
-			wtprintln("call __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
+			wtprintln("push __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
+			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
 			return;
 		}
 
@@ -275,140 +329,139 @@ literal_undefined_symbol:
 								 ast->literal.str);
 	} break;
 
+	case AST_CALL: {
+		value_kind_t last_type = check_stack_for_last(ctx, ".", ast);
+		if (last_type != VALUE_KIND_FUNCTION_POINTER) {
+			report_error("%s error: expected last element on the stack "
+									 "to be function pointer, but got `%s`",
+									 loc_to_str(&locid(ast->loc_id)),
+									 value_kind_to_str_pretty(last_type));
+		}
+
+		wtln("pop rax");
+		wtln("call rax");
+	} break;
+
 	case AST_PUSH: {
 		switch (ast->push_stmt.value_kind) {
 		case VALUE_KIND_INTEGER: {
 			wtprintln("mov rax, 0x%lX", ast->push_stmt.integer);
 			wtln("push rax");
-			stack_add_type(VALUE_KIND_INTEGER);
+			stack_add_type(ctx, VALUE_KIND_INTEGER);
 		} break;
 
 		case VALUE_KIND_STRING: {
 			scratch_buffer_genstrlen();
 			wtprintln("mov rax, %s", scratch_buffer_to_string());
 			wtln("push rax");
-			stack_add_type(VALUE_KIND_STRING);
+			stack_add_type(ctx, VALUE_KIND_STRING);
 			string_literal_counter++;
 		} break;
 
-		case VALUE_KIND_POISONED: UNREACHABLE;
-		case VALUE_KIND_LAST:			UNREACHABLE;
+		case VALUE_KIND_FUNCTION_POINTER: UNREACHABLE;
+		case VALUE_KIND_POISONED:					UNREACHABLE;
+		case VALUE_KIND_LAST:							UNREACHABLE;
 		}
 	} break;
 
 	case AST_PLUS: {
-		binintop_stack_size_and_type_check("+", ast);
+		check_for_two_integers_on_the_stack(ctx, "+", ast);
 		print_binop("add rax, rbx");
-		stack_pop();
+		stack_pop(ctx);
 	} break;
 
 	case AST_MINUS: {
-		binintop_stack_size_and_type_check("-", ast);
+		check_for_two_integers_on_the_stack(ctx, "-", ast);
 		print_binop("sub rax, rbx");
-		stack_pop();
+		stack_pop(ctx);
 	} break;
 
 	case AST_DIV: {
-		binintop_stack_size_and_type_check("/", ast);
+		check_for_two_integers_on_the_stack(ctx, "/", ast);
 		wtln("xor edx, edx");
 		print_binop("div rbx");
 	} break;
 
 	case AST_MUL: {
-		binintop_stack_size_and_type_check("*", ast);
+		check_for_two_integers_on_the_stack(ctx, "*", ast);
 		wtln("xor edx, edx");
 		print_binop("mul rbx");
 	} break;
 
 	case AST_EQUAL: {
-		binintop_stack_size_and_type_check("=", ast);
+		check_for_two_integers_on_the_stack(ctx, "=", ast);
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rax, rbx");
 		wtln("sete al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
-		stack_pop();
-		stack_types[stack_types_size - 1] = VALUE_KIND_INTEGER;
+		stack_pop(ctx);
+		*stack_at_mut(ctx, stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_LESS: {
-		binintop_stack_size_and_type_check("<", ast);
+		check_for_two_integers_on_the_stack(ctx, "<", ast);
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rbx, rax");
 		wtln("setb al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
-		stack_pop();
-		stack_types[stack_types_size - 1] = VALUE_KIND_INTEGER;
+		stack_pop(ctx);
+		*stack_at_mut(ctx, stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_GREATER: {
-		binintop_stack_size_and_type_check(">", ast);
+		check_for_two_integers_on_the_stack(ctx, ">", ast);
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rbx, rax");
 		wtln("setg al");
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
-		stack_pop();
-		stack_types[stack_types_size - 1] = VALUE_KIND_INTEGER;
+		stack_pop(ctx);
+		*stack_at_mut(ctx, stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_DROP: {
-		if (stack_types_size < 1) {
-			report_error("%s error: `drop` with an empty stack", loc_to_str(&locid(ast->loc_id)));
-		}
-
+		check_stack_for_last(ctx, "drop", ast);
 		wtln("pop rax");
-		stack_pop();
+		stack_pop(ctx);
 	} break;
 
 	case AST_DUP: {
-		if (stack_types_size < 1) {
-			report_error("%s error: `dup` with an empty stack", loc_to_str(&locid(ast->loc_id)));
-		}
-
+		value_kind_t last_type = check_stack_for_last(ctx, "dup", ast);
 		wtln("mov rax, [rsp]");
 		wtln("push rax");
-		const value_kind_t last_type = stack_types[stack_types_size - 1];
-		stack_add_type(last_type);
+		stack_add_type(ctx, last_type);
 	} break;
 
 	case AST_DOT: {
-		wtln("mov rax, qword [rsp]");
-		wtln("mov r14, 0x1"); // mov 1 to r14 to print newline
-		wtln("call dmp_i64");
+		value_kind_t last_type = check_stack_for_last(ctx, ".", ast);
+		switch (last_type) {
+		case VALUE_KIND_FUNCTION_POINTER:
+		case VALUE_KIND_INTEGER: {
+			wtln("mov rax, qword [rsp]");
+			wtln("mov r14, 0x1"); // mov 1 to r14 to print newline
+			wtln("call dmp_i64");
+		} break;
 
+		case VALUE_KIND_STRING: {
+			wtln("mov rax, SYS_WRITE");
+			wtln("mov rdi, SYS_STDOUT");
 
-		// if (stack_types_size < 1) {
-		// 	report_error("%s error: `dot` with an empty stack", loc_to_str(&locid(ast->loc_id)));
-		// }
+			scratch_buffer_genstr_offset(-1);
+			wtprintln("mov rsi, %s", scratch_buffer_to_string());
 
-		// const value_kind_t last_type = stack_types[stack_types_size - 1];
-		// switch (last_type) {
-		// case VALUE_KIND_INTEGER: {
-		// 	wtln("mov rax, qword [rsp]");
-		// 	wtln("mov r14, 0x1"); // mov 1 to r14 to print newline
-		// 	wtln("call dmp_i64");
-		// } break;
+			scratch_buffer_genstrlen_offset(-1);
+			wtprintln("mov rdx, %s", scratch_buffer_to_string());
+			wtln("syscall");
+		} break;
 
-		// case VALUE_KIND_STRING: {
-		// 	wtln("mov rax, SYS_WRITE");
-		// 	wtln("mov rdi, SYS_STDOUT");
-
-		// 	scratch_buffer_genstr_offset(-1);
-		// 	wtprintln("mov rsi, %s", scratch_buffer_to_string());
-
-		// 	scratch_buffer_genstrlen_offset(-1);
-		// 	wtprintln("mov rdx, %s", scratch_buffer_to_string());
-		// 	wtln("syscall");
-		// } break;
-
-		// case VALUE_KIND_POISONED: UNREACHABLE; break;
-		// case VALUE_KIND_LAST:			UNREACHABLE; break;
-		// }
+		case VALUE_KIND_POISONED: UNREACHABLE; break;
+		case VALUE_KIND_LAST:			UNREACHABLE; break;
+		}
 	} break;
 
 	case AST_POISONED: UNREACHABLE;
@@ -571,7 +624,10 @@ new_compiler(ast_id_t ast_cur)
 		.ast_cur = ast_cur,
 		.output_file_path = "out.asm",
 		.values_map = NULL,
-		.proc_ctx = NULL,
+		.proc_ctx = {
+			.stmt = NULL,
+			.stack_types_size = 0,
+		},
 	};
 }
 
@@ -606,7 +662,7 @@ compiler_compile(Compiler *compiler)
 
 			shput(compiler->values_map, ast.proc_stmt.name.str, ast.ast_id);
 
-			compiler->proc_ctx = &ast.proc_stmt;
+			compiler->proc_ctx.stmt = &ast.proc_stmt;
 
 			ast_t proc_ast = astid(ast.proc_stmt.body);
 			if (ast.proc_stmt.body >= 0) {
@@ -617,7 +673,8 @@ compiler_compile(Compiler *compiler)
 			wtln("push rbp");
 			wtln("ret");
 
-			compiler->proc_ctx = NULL;
+			compiler->proc_ctx.stmt = NULL;
+			compiler->proc_ctx.stack_types_size = 0;
 		}
 
 		ast = astid(ast.next);

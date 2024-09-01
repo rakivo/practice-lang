@@ -99,7 +99,15 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.proc_stmt.body = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx++], true);
+			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			token_idx++;
+
+			if (parser->ts[token_idx].kind == TOKEN_END
+			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
+			{
+				ast.next = -1;
+			}
+
 			append_ast(ast);
 			token_count++;
 		}
@@ -114,9 +122,6 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		last_ast.next = -1;
 
 		return ast;
-	} break;
-
-	case TOKEN_MACRO: {
 	} break;
 
 	case TOKEN_WHILE: {
@@ -149,8 +154,9 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.while_stmt.cond = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx++], true);
+			const ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
 			append_ast(ast);
+			token_idx++;
 			token_count++;
 		}
 
@@ -284,6 +290,11 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				.str = token->str,
 			}
 		);
+		return ast;
+	} break;
+
+	case TOKEN_CALL: {
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_CALL, .call_stmt = {0});
 		return ast;
 	} break;
 

@@ -22,10 +22,11 @@ const char *
 value_kind_to_str_pretty(value_kind_t kind)
 {
 	switch (kind) {
-	case VALUE_KIND_POISONED: return "poisoned"; break;
-	case VALUE_KIND_STRING:		return "str"; break;
-	case VALUE_KIND_INTEGER:	return "int"; break;
-	case VALUE_KIND_LAST:			return "last"; break;
+	case VALUE_KIND_FUNCTION_POINTER: return "funcptr";		break;
+	case VALUE_KIND_POISONED:					return "poisoned";	break;
+	case VALUE_KIND_STRING:						return "str";				break;
+	case VALUE_KIND_INTEGER:					return "int";				break;
+	case VALUE_KIND_LAST:							return "last";			break;
 	}
 }
 
@@ -101,6 +102,7 @@ print_ast(const ast_t *ast)
 	case AST_MUL:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_EQUAL:    printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_LESS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_CALL:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_GREATER:  printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_POISONED: printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	}
@@ -110,6 +112,7 @@ const char *
 ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
+	case AST_CALL:			return "AST_CALL";			break;
 	case AST_DUP:				return "AST_DUP";				break;
 	case AST_LITERAL:		return "AST_LITERAL";		break;
 	case AST_PROC:			return "AST_PROC";			break;
