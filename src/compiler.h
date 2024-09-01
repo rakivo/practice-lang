@@ -7,8 +7,7 @@
 
 typedef struct {
 	proc_stmt_t *stmt;
-	size_t stack_types_size;
-	value_kind_t stack_types[MAX_STACK_TYPES_CAP];
+	size_t values_pushed;
 } proc_ctx_t;
 
 typedef struct {

@@ -1,0 +1,16 @@
+proc print
+  str msg
+do
+  msg . drop
+end
+
+proc callback
+  funcptr f
+  int count
+do
+  count while dup 0 > do
+    1 - "hello\n" f! drop
+  end
+end
+
+print 10 callback!

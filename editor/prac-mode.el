@@ -31,16 +31,15 @@
 
 (defconst prac-mode-syntax-table
   (with-syntax-table (copy-syntax-table)
-    (modify-syntax-entry ?# ". 124b")
-    (modify-syntax-entry ?* ". 23")
-    (modify-syntax-entry ?\n "> b")
-    (modify-syntax-entry ?' "\"")
+    (modify-syntax-entry ?\# "<")
+    (modify-syntax-entry ?\n ">")
+    (modify-syntax-entry ?\' "\"")
     (syntax-table))
   "Syntax table for `prac-mode'.")
 
 (eval-and-compile
   (defconst prac-keywords
-    '("if" "else" "while" "do" "proc" "end" "drop" "dup")))
+    '("if" "int" "str" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup")))
 
 (defconst prac-highlights
   `((,(regexp-opt prac-keywords 'symbols) . font-lock-keyword-face)))
@@ -50,7 +49,7 @@
   "Major Mode for editing prac-lang source code."
   :syntax-table prac-mode-syntax-table
   (setq font-lock-defaults '(prac-highlights))
-  (setq-local comment-start "# "))
+  (setq-local comment-start "#"))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.prac\\'" . prac-mode))
