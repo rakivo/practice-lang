@@ -326,10 +326,13 @@ compile_loop:
 
 		/*
 			We do check here only if:
-				While statement is not in procedure OR while statement is in procedure, but you didn't call a function pointer in it,
-				because, we won't be able to keep track of the stack.
+				While statement is not in procedure OR while statement is in procedure/function, but you didn't call a function pointer in it,
+				because, if you did, we won't be able to keep track of the stack.
 		*/
-		if (start_stack_size != end_stack_size && (ctx->proc_ctx.stmt == NULL || !ctx->proc_ctx.called_funcptr)) {
+		if (start_stack_size != end_stack_size
+			&& !((ctx->proc_ctx.stmt == NULL || !ctx->proc_ctx.called_funcptr)
+				|| (ctx->func_ctx.stmt == NULL || !ctx->func_ctx.called_funcptr)))
+		{
 			eprintf("%s error: The amount of elements at the start of the `while` statement "
 							"should be equal to the amount of elements at the end of the statement\n",
 							loc_to_str(&locid(ast->loc_id)));
@@ -453,14 +456,14 @@ compile_loop:
 				// Compute the index of the value from the end of the stack
 				size_t stack_idx = 0;
 				if (ctx->proc_ctx.stmt != NULL) {
+					ctx->proc_ctx.called_funcptr = true;
 					stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
 				} else {
+					ctx->func_ctx.called_funcptr = true;
 					stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
 				}
 
 				wtprintln("call qword [rsp + %zu * WORD_SIZE]", stack_idx);
-
-				ctx->proc_ctx.called_funcptr = true;
 			} else {
 				if (value_idx == -1) {
 					report_error("%s error: undefined symbol: `%s`",
@@ -898,12 +901,17 @@ compiler_compile(Compiler *ctx)
 		ast = astid(ast.next);
 	}
 
+	ast = astid(ctx->ast_cur);
+	compile_func(ctx, &ast);
+
 	// Compile only used procs/funcs
 	for (ptrdiff_t i = 0; i < shlen(ctx->values_map); ++i) {
 		const value_t value = ctx->values_map[i].value;
 		if (value.ast_kind == AST_PROC && value.is_used) {
 			compile_proc(ctx, &astid(value.ast_id));
-		} else if (value.ast_kind == AST_FUNC && value.is_used) {
+		} else if (value.ast_kind == AST_FUNC && value.is_used
+					 && 0 == strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name.str))
+		{
 			compile_func(ctx, &astid(value.ast_id));
 		}
 	}
@@ -952,4 +960,5 @@ compiler_compile(Compiler *ctx)
 	#3. Distinguish between compile-time strings and runtime strings, to reduce the amount of calls to strlen
 	#4. Introduce let-binding notion
 	#5. Introduce `elif` keyword
+	#6. Verify `main` function signature
 */
