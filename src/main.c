@@ -66,6 +66,14 @@ main(int argc, const char *argv[])
 		report_error("%s:0:0: no main function found", file_path);
 	}
 
+	if (astid(main_function).func_stmt.ret_type != VALUE_KIND_INTEGER
+	|| vec_size(astid(main_function).func_stmt.args) != 0)
+	{
+		report_error("%s error: main function has wrong signature. \n"
+								 "  NOTE: expected signature: func int do <...> end",
+								 loc_to_str(&locid(astid(main_function_not_at_top_level).loc_id)));
+	}
+
 	Compiler compiler = new_compiler(main_function);
 	compiler_compile(&compiler);
 

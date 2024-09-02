@@ -960,5 +960,4 @@ compiler_compile(Compiler *ctx)
 	#3. Distinguish between compile-time strings and runtime strings, to reduce the amount of calls to strlen
 	#4. Introduce let-binding notion
 	#5. Introduce `elif` keyword
-	#6. Verify `main` function signature
 */
