@@ -75,7 +75,7 @@ scratch_buffer_genstrlen(void)
 
 // Compile an ast till the `ast.next` is greater than or equal to `0`.
 // Every non-empty block should be with an `ast.next` = -1 at the end.
-INLINE void
+INLINE ast_id_t
 compile_block(Compiler *ctx, ast_t ast)
 {
 	while (ast.ast_id < asts_len) {
@@ -83,6 +83,7 @@ compile_block(Compiler *ctx, ast_t ast)
 		if (ast.next < 0) break;
 		else ast = astid(ast.next);
 	}
+	return ast.ast_id;
 }
 
 INLINE
@@ -214,7 +215,6 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", curr_label);
 		stack_pop(ctx);
-		if (ctx->proc_ctx.stmt != NULL) ctx->proc_ctx.stack_size--;
 
 		ast_t if_ast = astid(ast->if_stmt.then_body);
 		if (ast->if_stmt.then_body >= 0) {
@@ -241,12 +241,15 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 #endif
 
 		ast_t while_ast;
+		ast_id_t last_ast_id_in_body;
+
+		const size_t start_stack_size = get_stack_size(ctx);
 
 		if (ast->while_stmt.cond < 0) goto compile_loop;
 
 		while_ast = astid(ast->while_stmt.cond);
 		if (ast->while_stmt.cond >= 0) {
-			compile_block(ctx, while_ast);
+			last_ast_id_in_body = compile_block(ctx, while_ast);
 		}
 
 #ifdef DEBUG
@@ -269,7 +272,29 @@ compile_loop:
 
 		if (ast->while_stmt.body >= 0) {
 			while_ast = astid(ast->while_stmt.body);
-			compile_block(ctx, while_ast);
+			last_ast_id_in_body = compile_block(ctx, while_ast);
+		}
+
+		const size_t end_stack_size = get_stack_size(ctx);
+
+		/*
+			We do check here only if:
+				While statement is not in procedure OR while statement is in procedure, but you didn't call a function pointer in it,
+				because, we won't be able to keep track of the stack.
+		*/
+		if (start_stack_size != end_stack_size && (ctx->proc_ctx.stmt == NULL || !ctx->proc_ctx.called_funcptr)) {
+			eprintf("%s error: The amount of elements at the start of the `while` statement "
+							"should be equal to the amount of elements at the end of the statement\n",
+							loc_to_str(&locid(ast->loc_id)));
+
+			eprintf("  NOTE: expected size: %zu, but got: %zu. Perhaps, %s\n",
+							start_stack_size,
+							end_stack_size,
+							end_stack_size > start_stack_size ?
+							"you can drop some elements" : "you lost the counter"
+			);
+
+			report_error("%s end of the statement", loc_to_str(&locid(astid(last_ast_id_in_body).loc_id)));
 		}
 
 		wtprintln("jmp ._while_%zu", curr_label);
@@ -296,7 +321,6 @@ compile_loop:
 
 			// Compute the index of the value from the end of the stack
 			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
-			// const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx;
 
 			wtprintln("mov rax, [rsp + %zu * WORD_SIZE]", stack_idx);
 			wtln("push rax");
@@ -315,35 +339,39 @@ compile_loop:
 	} break;
 
 	case AST_CALL: {
-		if (ctx->proc_ctx.stmt != NULL) {
-			size_t arg_idx = 0;
-			proc_arg_t *arg = NULL;
-			FOREACH_IDX(idx, proc_arg_t, proc_arg, ctx->proc_ctx.stmt->args) {
-				if (0 == strcmp(proc_arg.name, ast->literal.str)) {
-					arg = &proc_arg;
-					arg_idx = idx;
-					break;
+		const i32 value_idx = shgeti(ctx->values_map, ast->call.str);
+		if (value_idx != -1) {
+			wtprintln("call __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
+		} else {
+			if (ctx->proc_ctx.stmt != NULL) {
+				size_t arg_idx = 0;
+				proc_arg_t *arg = NULL;
+				FOREACH_IDX(idx, proc_arg_t, proc_arg, ctx->proc_ctx.stmt->args) {
+					if (0 == strcmp(proc_arg.name, ast->literal.str)) {
+						arg = &proc_arg;
+						arg_idx = idx;
+						break;
+					}
+				}
+
+				if (arg == NULL) {
+					report_error("%s error: undefined symbol: `%s`",
+											 loc_to_str(&locid(ast->loc_id)),
+											 ast->literal.str);
+				}
+
+				// Compute the index of the value from the end of the stack
+				const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
+				wtprintln("call qword [rsp + %zu * WORD_SIZE]", stack_idx);
+
+				ctx->proc_ctx.called_funcptr = true;
+			} else {
+				if (value_idx == -1) {
+					report_error("%s error: undefined symbol: `%s`",
+											 loc_to_str(&locid(ast->loc_id)),
+											 ast->call.str);
 				}
 			}
-
-			if (arg == NULL) {
-				report_error("%s error: undefined symbol: `%s`",
-										 loc_to_str(&locid(ast->loc_id)),
-										 ast->literal.str);
-			}
-
-			// printf("%zu\n", ctx->proc_ctx.stack_size);
-			// Compute the index of the value from the end of the stack
-			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
-			wtprintln("call [rsp + %zu * WORD_SIZE]", stack_idx);
-		} else {
-			const i32 value_idx = shgeti(ctx->values_map, ast->call.str);
-			if (value_idx == -1) {
-				report_error("%s error: undefined symbol: `%s`",
-										 loc_to_str(&locid(ast->loc_id)),
-										 ast->call.str);
-			}
-			wtprintln("call __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
 		}
 	} break;
 
@@ -645,6 +673,7 @@ new_compiler(ast_id_t ast_cur)
 		.proc_ctx = {
 			.stmt = NULL,
 			.stack_size = 0,
+			.called_funcptr = false
 		},
 	};
 }
@@ -688,18 +717,21 @@ compiler_compile(Compiler *compiler)
 				compile_block(compiler, proc_ast);
 			}
 
-			// Clean the stack
-			while (compiler->proc_ctx.stack_size > 0) {
-				wtln("pop rax");
-				compiler->proc_ctx.stack_size--;
-			}
-
 			wtln("mov rsp, rbp");
 			wtln("pop rbp");
+
+			wtln("pop rax");
+
+			// Clean the stack
+			wtprintln("add rsp, %zu * WORD_SIZE",
+								(size_t) vec_size(compiler->proc_ctx.stmt->args));
+
+			wtln("push rax");
 			wtln("ret");
 
 			compiler->proc_ctx.stmt = NULL;
 			compiler->proc_ctx.stack_size = 0;
+			compiler->proc_ctx.called_funcptr = false;
 		}
 
 		ast = astid(ast.next);
@@ -745,3 +777,8 @@ compiler_compile(Compiler *compiler)
 
 	fclose(stream);
 }
+
+/* TODO:
+	#3. Distinguish between compile-time strings and runtime strings, to reduce the amount of calls to strlen
+	#4. Introduce let-binding notion
+*/

@@ -4,11 +4,13 @@
 #include "ast.h"
 
 #define MAX_STACK_TYPES_CAP 1024
+#define PROC_CTX_MAX_STACK_TYPES_CAP 512
 
 typedef struct {
 	proc_stmt_t *stmt;
 	size_t stack_size;
-	value_kind_t stack_types[MAX_STACK_TYPES_CAP];
+	bool called_funcptr;
+	value_kind_t stack_types[PROC_CTX_MAX_STACK_TYPES_CAP];
 } proc_ctx_t;
 
 typedef struct {

@@ -1,5 +1,5 @@
 proc hello do
-  "\n" . drop
+  "hello world\n" . drop
 end
 
 proc print

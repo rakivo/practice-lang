@@ -7,7 +7,7 @@
 
 // #define PRINT_TOKENS
 // #define PRINT_ASTS
-#define DEBUG 1
+// #define DEBUG 1
 
 typedef int64_t i64;
 typedef int32_t i32;
