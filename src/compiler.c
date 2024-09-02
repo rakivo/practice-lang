@@ -910,7 +910,7 @@ compiler_compile(Compiler *ctx)
 		if (value.ast_kind == AST_PROC && value.is_used) {
 			compile_proc(ctx, &astid(value.ast_id));
 		} else if (value.ast_kind == AST_FUNC && value.is_used
-					 && 0 == strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name.str))
+					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name.str))
 		{
 			compile_func(ctx, &astid(value.ast_id));
 		}
