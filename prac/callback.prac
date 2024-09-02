@@ -13,4 +13,4 @@ do
   end
 end
 
-print 10 callback!
+print 10 callback! drop drop

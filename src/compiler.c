@@ -118,7 +118,7 @@ stack_at(const Compiler *ctx, size_t idx)
 	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
 }
 
-INLINE value_kind_t *
+UNUSED INLINE value_kind_t *
 stack_at_mut(Compiler *ctx, size_t idx)
 {
 	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];

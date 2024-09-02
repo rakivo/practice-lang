@@ -35,12 +35,7 @@ main(int argc, const char *argv[])
 	sss2D_t lines = NULL;
 	u32 lines_skipped = 0;
 	while (fgets(line, sizeof(line), file) != NULL) {
-		// Check if line starts with '#'
-		if (*line == '#') {
-			lines_skipped++;
-		} else {
-			vec_add(lines, split(line, ' '));
-		}
+		vec_add(lines, split(line, ' '));
 	}
 
 	fclose(file);

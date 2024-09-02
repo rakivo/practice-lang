@@ -90,10 +90,12 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			vec_add(ast.proc_stmt.args, proc_arg);
 		}
 
+		bool done = false;
 		size_t token_count = 0;
 		while (token_idx < vec_size(parser->ts)) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
+				done = true;
 				break;
 			} else if (token_count == 0) {
 				ast.proc_stmt.body = next;
@@ -110,6 +112,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 			append_ast(ast);
 			token_count++;
+		}
+
+		if (!done) {
+			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
 		}
 
 		if (last_ast.next > 0) {
@@ -166,9 +172,11 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		token_count = 0;
 
+		bool done = false;
 		while (token_idx < vec_size(parser->ts)) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
+				done = true;
 				break;
 			} else if (token_count == 0) {
 				ast.while_stmt.body = next;
@@ -178,6 +186,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			append_ast(ast);
 			token_idx++;
 			token_count++;
+		}
+
+		if (!done) {
+			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
 		}
 
 		if (last_ast.next > 0) {
@@ -212,10 +224,11 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		);
 
 		size_t token_count = 0;
-
+		bool done = false;
 		while (token_idx < vec_size(parser->ts)) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
+				done = true;
 				break;
 			} else if (token_.kind == TOKEN_ELSE) {
 				if (if_count < ++else_count) {
@@ -235,6 +248,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			if (token_.kind != TOKEN_ELSE) token_idx++;
 			append_ast(ast);
 			token_count++;
+		}
+
+		if (!done) {
+			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
 		}
 
 		if (last_ast.next > 0) {
