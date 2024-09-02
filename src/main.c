@@ -8,6 +8,7 @@
 #include "compiler.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 int
@@ -25,7 +26,7 @@ main(int argc, const char *argv[])
 
 	FILE *file = fopen(file_path, "r");
 	if (file == NULL) {
-		eprintf("error: Failed to open file: %s\n", file_path);
+		eprintf("error: failed to open file: %s\n", file_path);
 		return EXIT_FAILURE;
 	}
 
@@ -51,12 +52,24 @@ main(int argc, const char *argv[])
 	parser_parse(&parser);
 
 #ifdef PRINT_ASTS
-	for (ast_id_t i = 0; i < ASTS_SIZE; ++i) print_ast(&astid(i));
+	for (ast_id_t i = 0; i < asts_len; ++i) print_ast(&ast);
 #endif
 
-	Compiler compiler = new_compiler(0);
+	if (asts_len == 0) goto ret;
+
+	main_function_check(true, astid(0));
+	if(main_function == -1) {
+		if (main_function_not_at_top_level != -1) {
+			report_error("%s error: main function should be at top level",
+									 loc_to_str(&locid(astid(main_function_not_at_top_level).loc_id)));
+		}
+		report_error("%s:0:0: no main function found", file_path);
+	}
+
+	Compiler compiler = new_compiler(main_function);
 	compiler_compile(&compiler);
 
+ret:
 	memory_release();
 	return 0;
 }

@@ -1,0 +1,14 @@
+proc hello
+  int count
+do
+  # print hello
+  "hello " .
+
+  # decrement counter
+  count 1 -
+
+  # if count > 0 do recursion
+  dup 0 > if hello! end
+end
+
+3 hello!

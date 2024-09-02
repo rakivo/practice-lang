@@ -1,7 +1,7 @@
 proc print
   str msg
 do
-  msg . drop
+  msg .
 end
 
 proc callback
@@ -9,8 +9,10 @@ proc callback
   int count
 do
   count while dup 0 > do
-    1 - "hello\n" f! drop
+    1 - "hello\n" f!
   end
 end
 
-print 10 callback! drop drop
+func main int do
+  print 10 callback! 0
+end

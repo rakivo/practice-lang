@@ -25,7 +25,7 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-;;; Commentary:
+;;; Commentary: Major Mode for editing prac-lang source code
 ;;
 ;; Major Mode for editing prac-lang source code.
 
@@ -39,7 +39,7 @@
 
 (eval-and-compile
   (defconst prac-keywords
-    '("if" "int" "str" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup")))
+    '("if" "func" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup" "int" "str")))
 
 (defconst prac-highlights
   `((,(regexp-opt prac-keywords 'symbols) . font-lock-keyword-face)))

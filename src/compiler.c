@@ -56,6 +56,9 @@ static value_kind_t stack_types[MAX_STACK_TYPES_CAP];
 
 static const char **strs = NULL;
 
+static bool used_strlen = false;
+static bool used_dmp_i64 = false;
+
 static void
 compile_ast(Compiler *ctx, const ast_t *ast);
 
@@ -95,6 +98,12 @@ void stack_add_type(Compiler *ctx, value_kind_t type)
 			exit(1);
 		}
 		ctx->proc_ctx.stack_types[ctx->proc_ctx.stack_size++] = type;
+	} else if (ctx->func_ctx.stmt != NULL) {
+		if (unlikely(ctx->func_ctx.stack_size + 1 >= MAX_STACK_TYPES_CAP)) {
+			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
+			exit(1);
+		}
+		ctx->func_ctx.stack_types[ctx->func_ctx.stack_size++] = type;
 	} else {
 		if (unlikely(stack_size + 1 >= MAX_STACK_TYPES_CAP)) {
 			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
@@ -109,6 +118,8 @@ void stack_pop(Compiler *ctx)
 {
 	if (ctx->proc_ctx.stmt != NULL)
 		ctx->proc_ctx.stack_size--;
+	else if (ctx->func_ctx.stmt != NULL)
+		ctx->func_ctx.stack_size--;
 	else
 		stack_size--;
 }
@@ -116,27 +127,33 @@ void stack_pop(Compiler *ctx)
 INLINE const value_kind_t *
 stack_at(const Compiler *ctx, size_t idx)
 {
-	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
+	if (ctx->proc_ctx.stmt != NULL) return &ctx->proc_ctx.stack_types[idx];
+	else if (ctx->func_ctx.stmt != NULL) return &ctx->func_ctx.stack_types[idx];
+	else return &stack_types[idx];
 }
 
 UNUSED INLINE value_kind_t *
 stack_at_mut(Compiler *ctx, size_t idx)
 {
-	return ctx->proc_ctx.stmt == NULL ? &stack_types[idx] : &ctx->proc_ctx.stack_types[idx];
+	if (ctx->proc_ctx.stmt != NULL) return &ctx->proc_ctx.stack_types[idx];
+	else if (ctx->func_ctx.stmt != NULL) return &ctx->func_ctx.stack_types[idx];
+	else return &stack_types[idx];
 }
 
 INLINE size_t
 get_stack_size(const Compiler *ctx)
 {
-	return ctx->proc_ctx.stmt == NULL ? stack_size : ctx->proc_ctx.stack_size;
+	if (ctx->proc_ctx.stmt != NULL) return ctx->proc_ctx.stack_size;
+	else if (ctx->func_ctx.stmt != NULL) return ctx->func_ctx.stack_size;
+	else return stack_size;
 }
 
 INLINE const value_kind_t *
 get_type_from_end(const Compiler *ctx, size_t idx)
 {
-	const i32 size = get_stack_size(ctx) - idx - 1;
-	if (size < 0) return NULL;
-	return stack_at(ctx, size);
+	const i32 idx_ = get_stack_size(ctx) - idx - 1;
+	if (idx_ < 0) return NULL;
+	return stack_at(ctx, idx_);
 }
 
 // Check the stack size and types of values on the stack before performing a binop.
@@ -166,10 +183,10 @@ check_for_integer_on_the_stack(const Compiler *ctx, const char *op, const char *
 	if (type == NULL) {
 		report_error("%s error: `%s` with an empty stack", loc_to_str(&locid(ast->loc_id)), op);
 	} else if (*type != VALUE_KIND_INTEGER) {
-			report_error("%s error: %s, but got: %s",
-									 loc_to_str(&locid(ast->loc_id)),
-									 msg,
-									 value_kind_to_str_pretty(*type));
+		report_error("%s error: %s, but got: %s",
+								 loc_to_str(&locid(ast->loc_id)),
+								 msg,
+								 value_kind_to_str_pretty(*type));
 	}
 }
 
@@ -188,16 +205,46 @@ check_stack_for_last(const Compiler *ctx, const char *op, const ast_t *ast)
 	wtln(__VA_ARGS__); \
 	wtln("mov [rsp], rax");
 
+static size_t arg_idx = 0;
+
+static const arg_t *
+check_for_arg(Compiler *ctx, const char *str)
+{
+	arg_idx = 0;
+	arg_t *arg = NULL;
+
+	if (ctx->proc_ctx.stmt != NULL) {
+		FOREACH_IDX(idx, arg_t, arg_, ctx->proc_ctx.stmt->args) {
+			if (0 == strcmp(arg_.name, str)) {
+				arg = &arg_;
+				arg_idx = idx;
+				break;
+			}
+		}
+	} else if (ctx->func_ctx.stmt != NULL) {
+		FOREACH_IDX(idx, arg_t, arg_, ctx->func_ctx.stmt->args) {
+			if (0 == strcmp(arg_.name, str)) {
+				arg = &arg_;
+				arg_idx = idx;
+				break;
+			}
+		}
+	}
+
+	return arg;
+}
+
 static void
 compile_ast(Compiler *ctx, const ast_t *ast)
 {
 #ifdef DEBUG
-	if (ast->ast_kind != AST_PROC) {
+	if (ast->ast_kind != AST_PROC && ast->ast_kind != AST_FUNC) {
 		wprintln("; -- %s --", ast_kind_to_str(ast->ast_kind));
 	}
 #endif
 
 	switch (ast->ast_kind) {
+	case AST_FUNC:
 	case AST_PROC: {} break;
 
 	case AST_IF: {
@@ -302,58 +349,101 @@ compile_loop:
 	} break;
 
 	case AST_LITERAL: {
-		if (ctx->proc_ctx.stmt != NULL) {
-			size_t arg_idx = 0;
-			proc_arg_t *arg = NULL;
-			FOREACH_IDX(idx, proc_arg_t, proc_arg, ctx->proc_ctx.stmt->args) {
-				if (0 == strcmp(proc_arg.name, ast->literal.str)) {
-					arg = &proc_arg;
-					arg_idx = idx;
-					break;
+		const i32 value_idx = shgeti(ctx->values_map, ast->literal.str);
+		if (value_idx != -1) {
+			const value_t value = ctx->values_map[value_idx].value;
+			if (value.ast_kind == AST_PROC) {
+				wtprintln("push __%s__", astid(value.ast_id).proc_stmt.name.str);
+			} else if (value.ast_kind == AST_FUNC) {
+				wtprintln("push __%s__", astid(value.ast_id).func_stmt.name.str);
+			} else {
+				UNREACHABLE;
+			}
+
+			const value_t value_ = {
+				.ast_id = value.ast_id,
+				.ast_kind = value.ast_kind,
+				.is_used = true
+			};
+			shput(ctx->values_map, ast->call.str, value_);
+			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
+		} else {
+				if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
+					const arg_t *arg = check_for_arg(ctx, ast->literal.str);
+					if (arg == NULL) {
+						report_error("%s error: undefined symbol: `%s`",
+												 loc_to_str(&locid(ast->loc_id)),
+												 ast->literal.str);
+					}
+
+					// Compute the index of the value from the end of the stack
+					size_t stack_idx = 0;
+					if (ctx->proc_ctx.stmt != NULL) {
+						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
+					} else {
+						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
+					}
+
+					wtprintln("mov rax, [rsp + %zu * WORD_SIZE]", stack_idx);
+					wtln("push rax");
+					stack_add_type(ctx, arg->kind);
+			} else {
+				if (value_idx == -1) {
+					report_error("%s error: undefined symbol: `%s`",
+											 loc_to_str(&locid(ast->loc_id)),
+											 ast->call.str);
 				}
 			}
-
-			if (arg == NULL) {
-				report_error("%s error: undefined symbol: `%s`",
-										 loc_to_str(&locid(ast->loc_id)),
-										 ast->literal.str);
-			}
-
-			// Compute the index of the value from the end of the stack
-			const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
-
-			wtprintln("mov rax, [rsp + %zu * WORD_SIZE]", stack_idx);
-			wtln("push rax");
-
-			stack_add_type(ctx, arg->kind);
-		} else {
-			const i32 value_idx = shgeti(ctx->values_map, ast->literal.str);
-			if (value_idx == -1) {
-				report_error("%s error: undefined symbol: `%s`",
-										 loc_to_str(&locid(ast->loc_id)),
-										 ast->literal.str);
-			}
-			wtprintln("push __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
-			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
 		}
 	} break;
 
 	case AST_CALL: {
 		const i32 value_idx = shgeti(ctx->values_map, ast->call.str);
 		if (value_idx != -1) {
-			wtprintln("call __%s__", astid(ctx->values_map[value_idx].value).proc_stmt.name.str);
-		} else {
-			if (ctx->proc_ctx.stmt != NULL) {
-				size_t arg_idx = 0;
-				proc_arg_t *arg = NULL;
-				FOREACH_IDX(idx, proc_arg_t, proc_arg, ctx->proc_ctx.stmt->args) {
-					if (0 == strcmp(proc_arg.name, ast->literal.str)) {
-						arg = &proc_arg;
-						arg_idx = idx;
-						break;
-					}
-				}
+			const size_t stack_size = get_stack_size(ctx);
 
+			size_t args_count_required = 0;
+			const value_t value = ctx->values_map[value_idx].value;
+			const ast_t *decl_ast = &astid(ctx->values_map[value_idx].value.ast_id);
+			if (value.ast_kind == AST_PROC) {
+				args_count_required = vec_size(decl_ast->proc_stmt.args);
+			} else if (value.ast_kind == AST_FUNC) {
+				args_count_required = vec_size(decl_ast->func_stmt.args);
+			} else {
+				UNREACHABLE;
+			}
+
+			if (stack_size < args_count_required) {
+				eprintf("%s error: stack underflow trying to call: `%s`\n",
+								loc_to_str(&locid(ast->loc_id)),
+								ast->call.str);
+
+				report_error("  NOTE: expected amount of values on "
+										 "the stack: %zu, the actual stack size: %zu",
+										 args_count_required, stack_size);
+			}
+
+			for (size_t i = 0; i < args_count_required; ++i) {
+				stack_pop(ctx);
+			}
+
+			const value_t value_ = {
+				.ast_id = value.ast_id,
+				.ast_kind = value.ast_kind,
+				.is_used = true
+			};
+
+			if (value.ast_kind == AST_PROC) {
+				wtprintln("call __%s__", decl_ast->proc_stmt.name.str);
+			} else {
+				wtprintln("call __%s__", decl_ast->func_stmt.name.str);
+				stack_add_type(ctx, decl_ast->func_stmt.ret_type);
+			}
+
+			shput(ctx->values_map, ast->call.str, value_);
+		} else {
+			if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
+				const arg_t *arg = check_for_arg(ctx, ast->literal.str);
 				if (arg == NULL) {
 					report_error("%s error: undefined symbol: `%s`",
 											 loc_to_str(&locid(ast->loc_id)),
@@ -361,7 +451,13 @@ compile_loop:
 				}
 
 				// Compute the index of the value from the end of the stack
-				const size_t stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
+				size_t stack_idx = 0;
+				if (ctx->proc_ctx.stmt != NULL) {
+					stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
+				} else {
+					stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
+				}
+
 				wtprintln("call qword [rsp + %zu * WORD_SIZE]", stack_idx);
 
 				ctx->proc_ctx.called_funcptr = true;
@@ -479,6 +575,7 @@ compile_loop:
 			wtln("mov rax, qword [rsp]");
 			wtln("mov r14, 0x1"); // mov 1 to r14 to print newline
 			wtln("call dmp_i64");
+			used_dmp_i64 = true;
 		} break;
 
 		case VALUE_KIND_STRING: {
@@ -489,6 +586,7 @@ compile_loop:
 			wtln("mov rax, SYS_WRITE");
 			wtln("mov rdi, SYS_STDOUT");
 			wtln("syscall");
+			used_strlen = true;
 		} break;
 
 		case VALUE_KIND_POISONED: UNREACHABLE; break;
@@ -641,13 +739,10 @@ print_strlen(void)
 }
 
 INLINE void
-print_exit(u8 code)
+print_exit(void)
 {
 	wtln("mov rax, SYS_EXIT");
-
-	if (0 == code) wtln("xor rdi, rdi");
-	else wtprintln("mov rdi, %X", code);
-
+	wtln("mov rdi, [ret_code]");
 	wtln("syscall");
 }
 
@@ -655,12 +750,7 @@ INLINE void
 print_data_section(void)
 {
 	wln(SECTION_DATA_WRITEABLE);
-}
-
-INLINE void
-print_bss_section(void)
-{
-	wln(SECTION_BSS_WRITEABLE);
+	wln("ret_code dq 0x0");
 }
 
 Compiler
@@ -678,12 +768,114 @@ new_compiler(ast_id_t ast_cur)
 	};
 }
 
-void
-compiler_compile(Compiler *compiler)
+static void
+compile_proc(Compiler *ctx, const ast_t *ast)
 {
-	stream = fopen(compiler->output_file_path, "w");
+#ifdef DEBUG
+	FOREACH(arg_t, arg, ast->proc_stmt.args) {
+		wprintln("; %s", arg_to_str(&arg));
+	}
+#endif
+
+	wprintln("__%s__:", ast->proc_stmt.name.str);
+
+	wtln("push rbp");
+	wtln("mov rbp, rsp");
+
+	ctx->proc_ctx.stmt = &ast->proc_stmt;
+
+	ast_t proc_ast = astid(ast->proc_stmt.body);
+	if (ast->proc_stmt.body >= 0) {
+		compile_block(ctx, proc_ast);
+	}
+
+	wtln("mov rsp, rbp");
+	wtln("pop rbp");
+
+	// Pop return address to rax
+	wtln("pop rax");
+
+	// Clean the stack
+	wtprintln("add rsp, %zu * WORD_SIZE",
+						(size_t) vec_size(ctx->proc_ctx.stmt->args));
+
+	// Get the return address from rax
+	wtln("push rax");
+	wtln("ret");
+
+	ctx->proc_ctx.stmt = NULL;
+	ctx->proc_ctx.stack_size = 0;
+	ctx->proc_ctx.called_funcptr = false;
+}
+
+static void
+compile_func(Compiler *ctx, const ast_t *ast)
+{
+#ifdef DEBUG
+	FOREACH(arg_t, arg, ast->func_stmt.args) {
+		wprintln("; %s", arg_to_str(&arg));
+	}
+#endif
+
+	wprintln("__%s__:", ast->func_stmt.name.str);
+
+	wtln("push rbp");
+	wtln("mov rbp, rsp");
+
+	ctx->func_ctx.stmt = &ast->func_stmt;
+
+	ast_id_t last_ast_in_body = ast->ast_id;
+	ast_t func_ast = astid(ast->func_stmt.body);
+	if (ast->func_stmt.body >= 0) {
+		last_ast_in_body = compile_block(ctx, func_ast);
+	}
+
+	// Save the last value from stack to rdi
+	wtln("pop rdi");
+
+	wtln("mov rsp, rbp");
+	wtln("pop rbp");
+
+	// Pop return address to rax
+	wtln("pop rax");
+
+	if (ctx->func_ctx.stack_size < 1) {
+		report_error("%s error: expected to have element on the stack "
+								 "to perform implicit return from function, but don't have any",
+								 loc_to_str(&locid(astid(last_ast_in_body).loc_id)));
+	} else if (*get_type_from_end(ctx, 0) != ast->func_stmt.ret_type) {
+		report_error("%s error: expected last element on the stack to be: `%s`, but got: `%s`",
+								 loc_to_str(&locid(astid(last_ast_in_body).loc_id)),
+								 value_kind_to_str_pretty(ast->func_stmt.ret_type),
+								 value_kind_to_str_pretty(*get_type_from_end(ctx, 0)));
+	}
+
+	wtprintln("add rsp, %zu * WORD_SIZE",
+						(size_t) vec_size(ctx->func_ctx.stmt->args));
+
+	// Push return value from rdi before return address
+	wtln("push rdi");
+
+	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name.str)) {
+		wtln("mov [ret_code], rdi");
+	}
+
+	// Get the return address from rax
+	wtln("push rax");
+
+	wtln("ret");
+
+	ctx->func_ctx.stmt = NULL;
+	ctx->func_ctx.stack_size = 0;
+	ctx->func_ctx.called_funcptr = false;
+}
+
+void
+compiler_compile(Compiler *ctx)
+{
+	stream = fopen(ctx->output_file_path, "w");
 	if (stream == NULL) {
-		eprintf("error: Failed to open file: %s\n", compiler->output_file_path);
+		eprintf("error: Failed to open file: %s\n", ctx->output_file_path);
 		exit(EXIT_FAILURE);
 	}
 
@@ -691,62 +883,41 @@ compiler_compile(Compiler *compiler)
 
 	print_defines();
 	wln(SECTION_TEXT_EXECUTABLE);
-	print_dmp_i64();
-	print_strlen();
 
-	ast_t ast = astid(compiler->ast_cur);
+	ast_t ast = astid(0);
 	while (ast.next && ast.next <= ASTS_SIZE) {
-		if (ast.ast_kind == AST_PROC) {
-#ifdef DEBUG
-			FOREACH(proc_arg_t, proc_arg, ast.proc_stmt.args) {
-				wprintln("; %s", proc_arg_to_str(&proc_arg));
-			}
-#endif
-
-			wprintln("__%s__:", ast.proc_stmt.name.str);
-
-			wtln("push rbp");
-			wtln("mov rbp, rsp");
-
-			shput(compiler->values_map, ast.proc_stmt.name.str, ast.ast_id);
-
-			compiler->proc_ctx.stmt = &ast.proc_stmt;
-
-			ast_t proc_ast = astid(ast.proc_stmt.body);
-			if (ast.proc_stmt.body >= 0) {
-				compile_block(compiler, proc_ast);
-			}
-
-			wtln("mov rsp, rbp");
-			wtln("pop rbp");
-
-			wtln("pop rax");
-
-			// Clean the stack
-			wtprintln("add rsp, %zu * WORD_SIZE",
-								(size_t) vec_size(compiler->proc_ctx.stmt->args));
-
-			wtln("push rax");
-			wtln("ret");
-
-			compiler->proc_ctx.stmt = NULL;
-			compiler->proc_ctx.stack_size = 0;
-			compiler->proc_ctx.called_funcptr = false;
+		const bool is_proc = ast.ast_kind == AST_PROC;
+		const bool is_func = ast.ast_kind == AST_FUNC;
+		if (is_proc || is_func) {
+			const value_t value = {
+				.ast_id = ast.ast_id,
+				.ast_kind = ast.ast_kind
+			};
+			shput(ctx->values_map, is_proc ? ast.proc_stmt.name.str : ast.func_stmt.name.str, value);
 		}
-
 		ast = astid(ast.next);
+	}
+
+	// Compile only used procs/funcs
+	for (ptrdiff_t i = 0; i < shlen(ctx->values_map); ++i) {
+		const value_t value = ctx->values_map[i].value;
+		if (value.ast_kind == AST_PROC && value.is_used) {
+			compile_proc(ctx, &astid(value.ast_id));
+		} else if (value.ast_kind == AST_FUNC && value.is_used) {
+			compile_func(ctx, &astid(value.ast_id));
+		}
 	}
 
 	wln(GLOBAL " _start");
 	wln("_start:");
 
-	ast = astid(compiler->ast_cur);
-	while (ast.next && ast.next <= ASTS_SIZE) {
-		compile_ast(compiler, &ast);
-		ast = astid(ast.next);
-	}
+	wtln("call __" MAIN_FUNCTION "__");
 
-	print_exit(EXIT_SUCCESS);
+	print_exit();
+
+	if (used_dmp_i64) print_dmp_i64();
+	if (used_strlen) print_strlen();
+
 	print_data_section();
 
 	string_literal_counter = 0;
@@ -773,12 +944,12 @@ compiler_compile(Compiler *compiler)
 		string_literal_counter++;
 	}
 
-	print_bss_section();
-
+	shfree(ctx->values_map);
 	fclose(stream);
 }
 
 /* TODO:
 	#3. Distinguish between compile-time strings and runtime strings, to reduce the amount of calls to strlen
 	#4. Introduce let-binding notion
+	#5. Introduce `elif` keyword
 */

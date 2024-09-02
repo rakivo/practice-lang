@@ -81,7 +81,102 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
 			}
 
-			const proc_arg_t proc_arg = {
+			const arg_t proc_arg = {
+				.kind = kind,
+				.loc_id = token_.loc_id,
+				.name = parser->ts[token_idx++].str
+			};
+
+			vec_add(ast.proc_stmt.args, proc_arg);
+		}
+
+		bool done = false;
+		size_t token_count = 0;
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx];
+			if (token_.kind == TOKEN_END) {
+				done = true;
+				break;
+			} else if (token_count == 0) {
+				ast.proc_stmt.body = next;
+			}
+
+			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			token_idx++;
+
+			if (parser->ts[token_idx].kind == TOKEN_END
+			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
+			{
+				ast.next = -1;
+			}
+
+			append_ast(ast);
+			token_count++;
+		}
+
+		if (!done) {
+			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
+		}
+
+		if (last_ast.next > 0) {
+			ast.next = last_ast.next;
+		} else {
+			ast.next = next;
+		}
+
+		// indicate the end of the body
+		last_ast.next = -1;
+
+		return ast;
+	} break;
+
+	case TOKEN_FUNC: {
+		// Skip `proc` keyword
+		token_idx++;
+
+		if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+			report_error("%s error: func without a name", loc_to_str(&locid(token->loc_id)));
+		}
+
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_FUNC,
+			.func_stmt = {
+				.name = parser->ts[token_idx++],
+				.args = NULL,
+				.body = -1,
+				.ret_type = VALUE_KIND_POISONED
+			}
+		);
+
+		const token_t ret_type_token = parser->ts[token_idx++];
+		const i32 ret_type_ = value_kind_try_from_str(ret_type_token.str);
+		if (ret_type_ < 0) {
+			report_error("%s error: expected return type after `func` keyword, but got: %s", loc_to_str(&locid(ret_type_token.loc_id)), ret_type_token.str);
+		}
+
+		ast.func_stmt.ret_type = (value_kind_t) ret_type_;
+
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx++];
+
+			if (token_.kind == TOKEN_DO) {
+				break;
+			}
+
+			const i32 kind_ = value_kind_try_from_str(token_.str);
+			if (kind_ < 0) {
+				eprintf("%s error: invalid type: %s\n", loc_to_str(&locid(token_.loc_id)), token_.str);
+				report_error("  NOTE: You might have forgot to specify return type of the function.\n"
+										 "    For example: 'func %s int <...> do <...> end'",
+										 ast.func_stmt.name.str);
+			}
+
+			const value_kind_t kind = (value_kind_t) kind_;
+
+			if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
+			}
+
+			const arg_t proc_arg = {
 				.kind = kind,
 				.loc_id = token_.loc_id,
 				.name = parser->ts[token_idx++].str
@@ -267,7 +362,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_DO: {
-		report_error("%s error: do without while or proc context", loc_to_str(&locid(token->loc_id)));
+		report_error("%s error: do without while, func or proc context", loc_to_str(&locid(token->loc_id)));
 	} break;
 
 	case TOKEN_ELSE: {
@@ -275,7 +370,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_END: {
-		report_error("%s error: no matching if, proc or do found", loc_to_str(&locid(token->loc_id)));
+		report_error("%s error: no matching if, proc, func or do found", loc_to_str(&locid(token->loc_id)));
 	} break;
 
 	case TOKEN_DROP: {

@@ -57,16 +57,23 @@ typedef struct {
 	value_kind_t kind;
 	loc_id_t loc_id;
 	const char *name;
-} proc_arg_t;
+} arg_t;
 
 const char *
-proc_arg_to_str(const proc_arg_t *proc_arg);
+arg_to_str(const arg_t *proc_arg);
 
 typedef struct {
 	token_t name;
-	proc_arg_t *args;
+	arg_t *args;
 	ast_id_t body;
 } proc_stmt_t;
+
+typedef struct {
+	token_t name;
+	arg_t *args;
+	ast_id_t body;
+	value_kind_t ret_type;
+} func_stmt_t;
 
 typedef struct {
 	const char *str;
@@ -98,6 +105,7 @@ typedef struct {
 typedef enum {
 	AST_POISONED,
 	AST_IF,
+	AST_FUNC,
 	AST_PROC,
 	AST_WHILE,
 	AST_DOT,
@@ -137,6 +145,7 @@ typedef struct {
 		drop_stmt_t drop_stmt;
 		dup_stmt_t dup_stmt;
 		proc_stmt_t proc_stmt;
+		func_stmt_t func_stmt;
 		call_t call;
 		literal_t literal;
 	};
@@ -151,5 +160,11 @@ ast_kind_to_str(const ast_kind_t ast_kind);
 
 void
 print_ast(const ast_t *ast);
+
+extern ast_id_t main_function;
+extern ast_id_t main_function_not_at_top_level;
+
+void
+main_function_check(bool at_top_level, ast_t ast);
 
 #endif // AST_H_

@@ -19,6 +19,8 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
+#define MAIN_FUNCTION "main"
+
 #define DECLARE_STATIC(lower, upper) \
 	lower##_t upper##S[upper##S_CAP]; \
 	lower##_id_t upper##S_SIZE = 0 \

@@ -6,6 +6,9 @@
 
 DECLARE_STATIC(ast, AST);
 
+ast_id_t main_function = -1;
+ast_id_t main_function_not_at_top_level = -1;
+
 i32
 value_kind_try_from_str(const char *str)
 {
@@ -31,20 +34,20 @@ value_kind_to_str_pretty(value_kind_t kind)
 }
 
 const char *
-proc_arg_to_str(const proc_arg_t *proc_arg)
+arg_to_str(const arg_t *arg)
 {
-	const char *kind = value_kind_to_str_pretty(proc_arg->kind);
+	const char *kind = value_kind_to_str_pretty(arg->kind);
 	const size_t len = 0
 		+ strlen(kind)					 // value_kind
 		+ 1											 // space between
-		+ strlen(proc_arg->name) // name
+		+ strlen(arg->name) // name
 		+ 1;										 // \0
 
 	char *ret = calloc_string(len);
 	snprintf(ret, len,
 					 "%s %s",
 					 kind,
-					 proc_arg->name);
+					 arg->name);
 
 	return ret;
 }
@@ -65,11 +68,21 @@ print_ast(const ast_t *ast)
 		printf("str: %s\n", ast->literal.str);
 	} break;
 
+	case AST_FUNC: {
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
+		printf("name: %s\n", ast->func_stmt.name.str);
+		FOREACH(arg_t, proc_arg, ast->func_stmt.args) {
+			printf("arg: %s\n", arg_to_str(&proc_arg));
+		}
+		printf("body: %d\n", ast->func_stmt.body);
+		printf("ret_type: %s\n", value_kind_to_str_pretty(ast->func_stmt.ret_type));
+	} break;
+
 	case AST_PROC: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("name: %s\n", ast->proc_stmt.name.str);
-		FOREACH(proc_arg_t, proc_arg, ast->proc_stmt.args) {
-			printf("arg: %s\n", proc_arg_to_str(&proc_arg));
+		FOREACH(arg_t, arg, ast->proc_stmt.args) {
+			printf("arg: %s\n", arg_to_str(&arg));
 		}
 		printf("body: %d\n", ast->proc_stmt.body);
 	} break;
@@ -113,6 +126,7 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
 	case AST_CALL:			return "AST_CALL";			break;
+	case AST_FUNC:			return "AST_FUNC";			break;
 	case AST_DUP:				return "AST_DUP";				break;
 	case AST_LITERAL:		return "AST_LITERAL";		break;
 	case AST_PROC:			return "AST_PROC";			break;
@@ -130,4 +144,25 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 	case AST_LESS:			return "AST_LESS";			break;
 	case AST_GREATER:		return "AST_GREATER";		break;
 	}
+}
+
+void
+main_function_check(bool at_top_level, ast_t ast)
+{
+	if (ast.ast_kind == AST_IF) {
+		if (ast.if_stmt.then_body > 0) main_function_check(false, astid(ast.if_stmt.then_body));
+		if (ast.if_stmt.else_body > 0) main_function_check(false, astid(ast.if_stmt.else_body));
+	} else if (ast.ast_kind == AST_WHILE) {
+		if (ast.while_stmt.body > 0) main_function_check(false, astid(ast.while_stmt.body));
+	} else if (ast.ast_kind == AST_PROC) {
+		main_function_check(false, astid(ast.next));
+	} else if (ast.ast_kind == AST_FUNC) {
+		if (0 == strcmp(MAIN_FUNCTION, ast.func_stmt.name.str)) {
+			if (at_top_level) main_function = ast.ast_id;
+			else main_function_not_at_top_level = ast.ast_id;
+		} else main_function_check(false, astid(ast.next));
+	}
+
+	if (ast.next < 0 || ast.ast_kind == AST_POISONED) return;
+	main_function_check(at_top_level, astid(ast.next));
 }

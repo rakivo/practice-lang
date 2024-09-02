@@ -1,0 +1,9 @@
+func main
+  int argc
+  strptr argv
+do
+  0 while dup < argc do
+    dup argv + deref .
+    1 -
+  end
+end

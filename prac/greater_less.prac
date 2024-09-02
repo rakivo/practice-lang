@@ -9,3 +9,5 @@ end
 else
   777 .
 end
+
+func main int do 0 end

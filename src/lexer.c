@@ -13,6 +13,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF]		= "if",
 	[TOKEN_ELSE]	= "else",
 	[TOKEN_WHILE] = "while",
+	[TOKEN_FUNC]	= "func",
 	[TOKEN_DROP]	= "drop",
 	[TOKEN_DUP]   = "dup",
 	[TOKEN_DO]		= "do",
@@ -25,6 +26,7 @@ token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
+	case TOKEN_FUNC:						return "TOKEN_FUNC";						break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;
 	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;
@@ -163,7 +165,7 @@ void
 lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
 {
 	FOREACH(ss_t, ss, line) {
-		if (ss.str == NULL || *ss.str == '\0') continue;
+		if (ss.str == NULL || *ss.str == '\0' || *ss.str == '#') continue;
 
 		const loc_t loc = (loc_t) {
 			.row = lexer->row + lexer->lines_skipped,
