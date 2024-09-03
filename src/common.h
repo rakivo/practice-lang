@@ -26,8 +26,14 @@ typedef uint8_t  u8;
 	lower##_t upper##S[upper##S_CAP]; \
 	lower##_id_t upper##S_SIZE = 0 \
 
+void
+main_deinit(void);
+
 // Report error, release memory and exit
-#define report_error(fmt, ...) report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__)
+#define report_error(fmt, ...) do { \
+	main_deinit(); \
+	report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+} while (0)
 
 /* ------------------------------------------------------- */
 

@@ -8,6 +8,12 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#undef report_error
+#define report_error(fmt, ...) do { \
+	main_deinit(); \
+	report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+} while (0)
+
 INLINE i64
 parse_int(const char *str)
 {
@@ -60,7 +66,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `const` keyword
 		token_idx++;
 
-		if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_END) {
+		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_END) {
 			report_error("%s error: const without a name", loc_to_str(&locid(token->loc_id)));
 		}
 
@@ -80,7 +86,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		bool done = false;
 		size_t token_count = 0;
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
@@ -120,7 +126,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `proc` keyword
 		token_idx++;
 
-		if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
 			report_error("%s error: proc without a name", loc_to_str(&locid(token->loc_id)));
 		}
 
@@ -132,7 +138,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			}
 		);
 
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx++];
 
 			if (token_.kind == TOKEN_DO) {
@@ -146,7 +152,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 			const value_kind_t kind = (value_kind_t) kind_;
 
-			if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+			if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
 				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
 			}
 
@@ -161,7 +167,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		bool done = false;
 		size_t token_count = 0;
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
@@ -203,7 +209,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `proc` keyword
 		token_idx++;
 
-		if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
 			report_error("%s error: func without a name", loc_to_str(&locid(token->loc_id)));
 		}
 
@@ -224,7 +230,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		ast.func_stmt.ret_type = (value_kind_t) ret_type_;
 
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx++];
 
 			if (token_.kind == TOKEN_DO) {
@@ -241,7 +247,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 			const value_kind_t kind = (value_kind_t) kind_;
 
-			if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_DO) {
+			if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
 				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
 			}
 
@@ -256,7 +262,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		bool done = false;
 		size_t token_count = 0;
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
@@ -312,7 +318,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		size_t token_count = 0;
 		size_t start = token_idx;
 
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_DO) {
 				if (token_idx > start) {
@@ -337,7 +343,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		token_count = 0;
 
 		bool done = false;
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
@@ -389,7 +395,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		size_t token_count = 0;
 		bool done = false;
-		while (token_idx < vec_size(parser->ts)) {
+		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;

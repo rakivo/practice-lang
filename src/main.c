@@ -12,6 +12,19 @@
 #include <string.h>
 #include <stdlib.h>
 
+static lines_t lines = NULL;
+static size_t lines_count = 0;
+static tokens_t tokens = NULL;
+
+void
+main_deinit(void)
+{
+	for (size_t i = 0; i < lines_count; ++i) free(lines[i].items);
+	free(lines);
+	free(tokens);
+	memory_release();
+}
+
 int
 main(int argc, const char *argv[])
 {
@@ -31,11 +44,10 @@ main(int argc, const char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	memory_init(10);
+	memory_init(3);
 
 	char line[LINE_CAP];
-	size_t lines_count = 0;
-	lines_t lines = (lines_t) malloc(sizeof(lines_t *) * LINES_CAP);
+	lines = (lines_t) malloc(sizeof(lines_t *) * LINES_CAP);
 	while (fgets(line, sizeof(line), file) != NULL) {
 		lines[lines_count++] = split(line, ' ');
 	}
@@ -43,7 +55,7 @@ main(int argc, const char *argv[])
 	fclose(file);
 
 	Lexer lexer = new_lexer(file_.file_id, lines, lines_count);
-	tokens_t tokens = lexer_lex(&lexer);
+	tokens = lexer_lex(&lexer);
 
 #ifdef PRINT_TOKENS
 	for (size_t i = 0; i < lexer.tokens_count; ++i) printf("%s\n", token_to_str(&tokens[i]));
@@ -75,8 +87,7 @@ main(int argc, const char *argv[])
 	compiler_compile(&compiler);
 
 ret:
-	free(lines);
-	memory_release();
+	main_deinit();
 	return 0;
 }
 

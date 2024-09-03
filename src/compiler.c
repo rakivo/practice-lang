@@ -804,6 +804,7 @@ static void
 compiler_emergency_exit(void)
 {
 	compiler_deinit();
+	main_deinit();
 	remove(x86_64_output);
 }
 
