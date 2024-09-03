@@ -10,16 +10,18 @@
 #include <string.h>
 #include <stdlib.h>
 
-/*
-	In r15 you always have an updated pointer to the top of the stack.
-*/
+#undef report_error
+#define report_error(fmt, ...) do { \
+	compiler_emergency_exit(); \
+	report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+} while (0)
 
-#define TAB "  "
+#define TAB "\t"
 
 #define wln(...) fprintf(stream, __VA_ARGS__ "\n")
 #define wtln(...) wln(TAB __VA_ARGS__)
 #define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
-#define wtprintln(fmt, ...) fprintf(stream, TAB fmt "\n", __VA_ARGS__)
+#define wtprintln(fmt, ...) wprintln(TAB fmt, __VA_ARGS__)
 
 #ifndef DEBUG
 	#define FASM
@@ -45,6 +47,9 @@
 	#define SECTION_TEXT_EXECUTABLE "section .text"
 #endif // FASM
 
+#define WORD_SIZE 8
+#define x86_64_output "out.asm"
+
 static FILE *stream = NULL;
 
 static size_t label_counter = 0;
@@ -59,8 +64,25 @@ static const char **strs = NULL;
 static bool used_strlen = false;
 static bool used_dmp_i64 = false;
 
+typedef struct {
+	bool is_used;
+	ast_id_t ast_id;
+	ast_kind_t ast_kind;
+} value_t;
+
+struct {
+	const char *key;
+	value_t value;
+} *values_map = NULL;
+
 static void
 compile_ast(Compiler *ctx, const ast_t *ast);
+
+static void
+compiler_deinit(void);
+
+static void
+compiler_emergency_exit(void);
 
 INLINE void
 scratch_buffer_genstr(void)
@@ -199,11 +221,12 @@ check_stack_for_last(const Compiler *ctx, const char *op, const ast_t *ast)
 }
 
 // Perform binary operation with rax, rbx
-#define print_binop(...) \
+#define print_binop(...) do { \
 	wtln("pop rbx"); \
 	wtln("mov rax, qword [rsp]"); \
 	wtln(__VA_ARGS__); \
-	wtln("mov [rsp], rax");
+	wtln("mov [rsp], rax"); \
+} while (0)
 
 static size_t arg_idx = 0;
 
@@ -244,6 +267,8 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 #endif
 
 	switch (ast->ast_kind) {
+	// These are handled in different place
+	case AST_CONST:
 	case AST_FUNC:
 	case AST_PROC: {} break;
 
@@ -352,13 +377,13 @@ compile_loop:
 	} break;
 
 	case AST_LITERAL: {
-		const i32 value_idx = shgeti(ctx->values_map, ast->literal.str);
+		const i32 value_idx = shgeti(values_map, ast->literal.str);
 		if (value_idx != -1) {
-			const value_t value = ctx->values_map[value_idx].value;
+			const value_t value = values_map[value_idx].value;
 			if (value.ast_kind == AST_PROC) {
-				wtprintln("push __%s__", astid(value.ast_id).proc_stmt.name.str);
+				wtprintln("push __%s__", astid(value.ast_id).proc_stmt.name->str);
 			} else if (value.ast_kind == AST_FUNC) {
-				wtprintln("push __%s__", astid(value.ast_id).func_stmt.name.str);
+				wtprintln("push __%s__", astid(value.ast_id).func_stmt.name->str);
 			} else {
 				UNREACHABLE;
 			}
@@ -368,7 +393,7 @@ compile_loop:
 				.ast_kind = value.ast_kind,
 				.is_used = true
 			};
-			shput(ctx->values_map, ast->call.str, value_);
+			shput(values_map, ast->call.str, value_);
 			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
 		} else {
 				if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
@@ -387,7 +412,7 @@ compile_loop:
 						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
 					}
 
-					wtprintln("mov rax, [rsp + %zu * WORD_SIZE]", stack_idx);
+					wtprintln("mov rax, [rsp + %zu]", stack_idx * WORD_SIZE);
 					wtln("push rax");
 					stack_add_type(ctx, arg->kind);
 			} else {
@@ -401,13 +426,13 @@ compile_loop:
 	} break;
 
 	case AST_CALL: {
-		const i32 value_idx = shgeti(ctx->values_map, ast->call.str);
+		const i32 value_idx = shgeti(values_map, ast->call.str);
 		if (value_idx != -1) {
 			const size_t stack_size = get_stack_size(ctx);
 
 			size_t args_count_required = 0;
-			const value_t value = ctx->values_map[value_idx].value;
-			const ast_t *decl_ast = &astid(ctx->values_map[value_idx].value.ast_id);
+			const value_t value = values_map[value_idx].value;
+			const ast_t *decl_ast = &astid(values_map[value_idx].value.ast_id);
 			if (value.ast_kind == AST_PROC) {
 				args_count_required = vec_size(decl_ast->proc_stmt.args);
 			} else if (value.ast_kind == AST_FUNC) {
@@ -437,13 +462,13 @@ compile_loop:
 			};
 
 			if (value.ast_kind == AST_PROC) {
-				wtprintln("call __%s__", decl_ast->proc_stmt.name.str);
+				wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
 			} else {
-				wtprintln("call __%s__", decl_ast->func_stmt.name.str);
+				wtprintln("call __%s__", decl_ast->func_stmt.name->str);
 				stack_add_type(ctx, decl_ast->func_stmt.ret_type);
 			}
 
-			shput(ctx->values_map, ast->call.str, value_);
+			shput(values_map, ast->call.str, value_);
 		} else {
 			if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
 				const arg_t *arg = check_for_arg(ctx, ast->literal.str);
@@ -463,7 +488,7 @@ compile_loop:
 					stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
 				}
 
-				wtprintln("call qword [rsp + %zu * WORD_SIZE]", stack_idx);
+				wtprintln("call qword [rsp + %zu]", stack_idx * WORD_SIZE);
 			} else {
 				if (value_idx == -1) {
 					report_error("%s error: undefined symbol: `%s`",
@@ -491,9 +516,9 @@ compile_loop:
 			vec_add(strs, ast->push_stmt.str);
 		} break;
 
-		case VALUE_KIND_FUNCTION_POINTER: UNREACHABLE;
-		case VALUE_KIND_POISONED:					UNREACHABLE;
-		case VALUE_KIND_LAST:							UNREACHABLE;
+		case VALUE_KIND_FUNCTION_POINTER:
+		case VALUE_KIND_POISONED:
+		case VALUE_KIND_LAST:	UNREACHABLE; break;
 		}
 	} break;
 
@@ -604,8 +629,6 @@ compile_loop:
 INLINE void
 print_defines(void)
 {
-	wln(DEFINE " WORD_SIZE  8");
-	wln(DEFINE " NEW_LINE   10");
 	wln(DEFINE " SYS_WRITE  1");
 	wln(DEFINE " SYS_STDOUT 1");
 	wln(DEFINE " SYS_EXIT   60");
@@ -614,11 +637,12 @@ print_defines(void)
 static void
 print_dmp_i64(void)
 {
+#ifdef DEBUG
 	wln("; r14b: newline");
 	wln("; rax: number to print");
+#endif
 	wln("dmp_i64:");
-	wtln("push    rbp");
-	wtln("mov     rbp, rsp");
+	wtln("enter   0, 0");
 	wtln("sub     rsp, 64");
 	wtln("mov     qword [rbp - 8],  rax");
 	wtln("mov     dword [rbp - 36], 0");
@@ -723,7 +747,7 @@ print_dmp_i64(void)
 	wtln("mov     edi, SYS_STDOUT");
 	wtln("syscall");
 	wtln("add     rsp, 64");
-	wtln("pop     rbp");
+	wtln("leave");
 	wtln("ret");
 }
 
@@ -761,14 +785,26 @@ new_compiler(ast_id_t ast_cur)
 {
 	return (Compiler) {
 		.ast_cur = ast_cur,
-		.output_file_path = "out.asm",
-		.values_map = NULL,
 		.proc_ctx = {
 			.stmt = NULL,
 			.stack_size = 0,
 			.called_funcptr = false
 		},
 	};
+}
+
+static void
+compiler_deinit(void)
+{
+	shfree(values_map);
+	fclose(stream);
+}
+
+static void
+compiler_emergency_exit(void)
+{
+	compiler_deinit();
+	remove(x86_64_output);
 }
 
 static void
@@ -780,7 +816,7 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 	}
 #endif
 
-	wprintln("__%s__:", ast->proc_stmt.name.str);
+	wprintln("__%s__:", ast->proc_stmt.name->str);
 
 	wtln("push rbp");
 	wtln("mov rbp, rsp");
@@ -799,8 +835,8 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 	wtln("pop rax");
 
 	// Clean the stack
-	wtprintln("add rsp, %zu * WORD_SIZE",
-						(size_t) vec_size(ctx->proc_ctx.stmt->args));
+	wtprintln("add rsp, %zu",
+						(size_t) vec_size(ctx->proc_ctx.stmt->args) * WORD_SIZE);
 
 	// Get the return address from rax
 	wtln("push rax");
@@ -820,10 +856,9 @@ compile_func(Compiler *ctx, const ast_t *ast)
 	}
 #endif
 
-	wprintln("__%s__:", ast->func_stmt.name.str);
+	wprintln("__%s__:", ast->func_stmt.name->str);
 
-	wtln("push rbp");
-	wtln("mov rbp, rsp");
+	wtln("enter 0, 0");
 
 	ctx->func_ctx.stmt = &ast->func_stmt;
 
@@ -836,8 +871,7 @@ compile_func(Compiler *ctx, const ast_t *ast)
 	// Save the last value from stack to rdi
 	wtln("pop rdi");
 
-	wtln("mov rsp, rbp");
-	wtln("pop rbp");
+	wtln("leave");
 
 	// Pop return address to rax
 	wtln("pop rax");
@@ -853,13 +887,13 @@ compile_func(Compiler *ctx, const ast_t *ast)
 								 value_kind_to_str_pretty(*get_type_from_end(ctx, 0)));
 	}
 
-	wtprintln("add rsp, %zu * WORD_SIZE",
-						(size_t) vec_size(ctx->func_ctx.stmt->args));
+	wtprintln("add rsp, %zu",
+						(size_t) vec_size(ctx->func_ctx.stmt->args) * 8);
 
 	// Push return value from rdi before return address
 	wtln("push rdi");
 
-	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name.str)) {
+	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name->str)) {
 		wtln("mov [ret_code], rdi");
 	}
 
@@ -876,9 +910,9 @@ compile_func(Compiler *ctx, const ast_t *ast)
 void
 compiler_compile(Compiler *ctx)
 {
-	stream = fopen(ctx->output_file_path, "w");
+	stream = fopen(x86_64_output, "w");
 	if (stream == NULL) {
-		eprintf("error: Failed to open file: %s\n", ctx->output_file_path);
+		eprintf("error: Failed to open file: %s\n", x86_64_output);
 		exit(EXIT_FAILURE);
 	}
 
@@ -896,7 +930,7 @@ compiler_compile(Compiler *ctx)
 				.ast_id = ast.ast_id,
 				.ast_kind = ast.ast_kind
 			};
-			shput(ctx->values_map, is_proc ? ast.proc_stmt.name.str : ast.func_stmt.name.str, value);
+			shput(values_map, is_proc ? ast.proc_stmt.name->str : ast.func_stmt.name->str, value);
 		}
 		ast = astid(ast.next);
 	}
@@ -905,12 +939,12 @@ compiler_compile(Compiler *ctx)
 	compile_func(ctx, &ast);
 
 	// Compile only used procs/funcs
-	for (ptrdiff_t i = 0; i < shlen(ctx->values_map); ++i) {
-		const value_t value = ctx->values_map[i].value;
+	for (ptrdiff_t i = 0; i < shlen(values_map); ++i) {
+		const value_t value = values_map[i].value;
 		if (value.ast_kind == AST_PROC && value.is_used) {
 			compile_proc(ctx, &astid(value.ast_id));
 		} else if (value.ast_kind == AST_FUNC && value.is_used
-					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name.str))
+					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name->str))
 		{
 			compile_func(ctx, &astid(value.ast_id));
 		}
@@ -942,7 +976,7 @@ compiler_compile(Compiler *ctx)
 			scratch_buffer.str[len - 3] = '"';
 			scratch_buffer.str[len - 2] = '\0';
 
-			wprintln("%s db %s, NEW_LINE, 0", strdb, scratch_buffer_to_string());
+			wprintln("%s db %s, 10, 0", strdb, scratch_buffer_to_string());
 		} else {
 			wprintln("%s db %s, 0", strdb, str);
 		}
@@ -952,8 +986,7 @@ compiler_compile(Compiler *ctx)
 		string_literal_counter++;
 	}
 
-	shfree(ctx->values_map);
-	fclose(stream);
+	compiler_deinit();
 }
 
 /* TODO:

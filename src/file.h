@@ -11,7 +11,7 @@ typedef struct {
 str_t
 new_str_t(const char *src);
 
-typedef u16 file_id_t;
+typedef u32 file_id_t;
 
 typedef struct {
 	file_id_t file_id;

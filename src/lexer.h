@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define LINE_CAP (1024 * 5)
+#define LINES_CAP (1024 * 500)
+#define TOKENS_LINE_CAP 1024
+#define TOKENS_CAP (1024 * 500)
+
 // NOTE: If you added a new keyword, update `KEYWORDS` array at the top of the `lexer.c` file.
 typedef enum {
 	TOKEN_IF,
@@ -16,6 +21,7 @@ typedef enum {
 	TOKEN_ELSE,
 	TOKEN_DUP,
 	TOKEN_FUNC,
+	TOKEN_CONST,
 	TOKEN_DROP,
 	TOKEN_PROC,
 	TOKEN_END,
@@ -61,6 +67,9 @@ const char *
 token_kind_to_str(token_kind_t token_kind);
 
 const char *
+token_kind_to_str_pretty(const token_kind_t token_kind);
+
+const char *
 loc_to_str(const loc_t *loc);
 
 const char *
@@ -73,31 +82,39 @@ typedef struct {
 
 typedef ss_t *sss_t;
 typedef ss_t **sss2D_t;
-
 typedef token_t *tokens_t;
 
 typedef struct {
-	u32 row, lines_skipped;
-	sss2D_t lines;
+	sss_t items;
+	size_t count;
+} line_t;
+
+typedef line_t *lines_t;
+
+typedef struct {
+	u32 row;
+	lines_t lines;
 	file_id_t file_id;
+	size_t lines_count;
+	size_t tokens_count;
 } Lexer;
 
 Lexer
-new_lexer(file_id_t file_id, sss2D_t lines, u32 lines_skipped);
+new_lexer(file_id_t file_id, lines_t lines, size_t lines_count);
 
 tokens_t
 lexer_lex(Lexer *lexer);
 
-sss_t
+line_t
 split(char *input, char delim);
 
 token_kind_t
 type_token(const char *str, const loc_t *loc);
 
 void
-lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret);
+lexer_lex_line(Lexer *lexer, line_t line, tokens_t *ret);
 
-#define LOCS_CAP 1024
+#define LOCS_CAP (1024 * 500)
 extern loc_id_t LOCS_SIZE;
 extern loc_t LOCS[LOCS_CAP];
 

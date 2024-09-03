@@ -26,20 +26,7 @@ typedef struct {
 } func_ctx_t;
 
 typedef struct {
-	bool is_used;
-	ast_id_t ast_id;
-	ast_kind_t ast_kind;
-} value_t;
-
-typedef struct {
 	ast_id_t ast_cur;
-	const char *output_file_path;
-
-	struct {
-		const char *key;
-		value_t value;
-	} *values_map;
-
 	proc_ctx_t proc_ctx;
 	func_ctx_t func_ctx;
 } Compiler;

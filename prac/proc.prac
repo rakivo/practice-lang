@@ -2,11 +2,19 @@ proc hello do
   "hello world\n" . drop
 end
 
-proc print
+proc print_sum
   int a
+  int b
 do
-  3 while dup 0 > do 1 - hello! end drop
-  a dup = if 420 . end
 end
 
-69 print!
+proc foo
+  int a
+  int b
+do
+  a b a b dup dup .
+end
+
+func main int do
+  0
+end

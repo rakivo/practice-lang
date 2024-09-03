@@ -22,7 +22,7 @@
 	__VA_ARGS__ \
 }
 
-typedef i16 ast_id_t;
+typedef i32 ast_id_t;
 
 typedef enum {
 	// Reserved first variant
@@ -54,6 +54,12 @@ typedef struct {} dup_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
+	const token_t *name;
+	ast_id_t body;
+	bool constexpr;
+} const_stmt_t;
+
+typedef struct {
 	value_kind_t kind;
 	loc_id_t loc_id;
 	const char *name;
@@ -63,13 +69,13 @@ const char *
 arg_to_str(const arg_t *proc_arg);
 
 typedef struct {
-	token_t name;
+	const token_t *name;
 	arg_t *args;
 	ast_id_t body;
 } proc_stmt_t;
 
 typedef struct {
-	token_t name;
+	const token_t *name;
 	arg_t *args;
 	ast_id_t body;
 	value_kind_t ret_type;
@@ -120,6 +126,7 @@ typedef enum {
 	AST_CALL,
 	AST_DROP,
 	AST_GREATER,
+	AST_CONST,
 	AST_LITERAL,
 } ast_kind_t;
 
@@ -146,12 +153,13 @@ typedef struct {
 		dup_stmt_t dup_stmt;
 		proc_stmt_t proc_stmt;
 		func_stmt_t func_stmt;
+		const_stmt_t const_stmt;
 		call_t call;
 		literal_t literal;
 	};
 } ast_t;
 
-#define ASTS_CAP 1024
+#define ASTS_CAP (1024 * 500)
 extern ast_id_t ASTS_SIZE;
 extern ast_t ASTS[ASTS_CAP];
 

@@ -39,7 +39,7 @@
 
 (eval-and-compile
   (defconst prac-keywords
-    '("if" "func" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup" "int" "str")))
+    '("if" "func" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup" "const" "int" "str")))
 
 (defconst prac-highlights
   `((,(regexp-opt prac-keywords 'symbols) . font-lock-keyword-face)))

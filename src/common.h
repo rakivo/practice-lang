@@ -7,7 +7,8 @@
 
 // #define PRINT_TOKENS
 // #define PRINT_ASTS
-// #define DEBUG 1
+// #define MEM_PRINT 1
+#define DEBUG 1
 
 typedef int64_t i64;
 typedef int32_t i32;
@@ -38,6 +39,7 @@ typedef uint8_t  u8;
 
 #define NO_ARENA 0
 #define MAX_VECTOR_WIDTH 65536
+
 #define MAX_ARRAY_SIZE INT64_MAX
 #define MAX_SOURCE_LOCATION_LEN 255
 #define PROJECT_JSON "project.json"

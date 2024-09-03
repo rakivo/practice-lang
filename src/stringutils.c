@@ -19,7 +19,6 @@ int str_findlist(const char *value, unsigned count, const char** elements)
 	return -1;
 }
 
-
 bool str_is_valid_module_name(const char *name)
 {
 	char c = *name++;
@@ -286,6 +285,7 @@ void str_trim_end(char *str)
 		}
 	}
 }
+
 char *str_cat(const char *a, const char *b)
 {
 	unsigned a_len = (unsigned)strlen(a);
@@ -431,5 +431,3 @@ char *scratch_buffer_copy(void)
 {
 	return str_copy(scratch_buffer.str, scratch_buffer.len);
 }
-
-

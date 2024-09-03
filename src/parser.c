@@ -24,13 +24,22 @@ parse_int(const char *str)
 	return ret;
 }
 
+Parser
+new_parser(const tokens_t ts, size_t tc)
+{
+	return (Parser) {
+		.ts = ts,
+		.tc = tc,
+	};
+}
+
 static ast_id_t next = 0;
 static size_t token_idx = 0;
 
 void
 parser_parse(Parser *parser)
 {
-	while (token_idx < vec_size(parser->ts)) {
+	while (token_idx < parser->tc) {
 		const ast_t ast = ast_token(parser, &parser->ts[token_idx], false);
 		append_ast(ast);
 		token_idx++;
@@ -47,6 +56,66 @@ ast_t
 ast_token(Parser *parser, const token_t *token, bool rec)
 {
 	switch (token->kind) {
+	case TOKEN_CONST: {
+		// Skip `const` keyword
+		token_idx++;
+
+		if (token_idx > vec_size(parser->ts) || parser->ts[token_idx].kind == TOKEN_END) {
+			report_error("%s error: const without a name", loc_to_str(&locid(token->loc_id)));
+		}
+
+		if (parser->ts[token_idx].kind != TOKEN_LITERAL) {
+			report_error("%s error: expected name of the constant to be non-keyword `literal`, but got: `%s`",
+									 loc_to_str(&locid(parser->ts[token_idx].loc_id)),
+									 token_kind_to_str_pretty(parser->ts[token_idx].kind));
+		}
+
+		ast_t ast = make_ast(0, token->loc_id, ++next, AST_CONST,
+			.const_stmt = {
+				.name = &parser->ts[token_idx++],
+				.body = -1,
+				.constexpr = false,
+			}
+		);
+
+		bool done = false;
+		size_t token_count = 0;
+		while (token_idx < vec_size(parser->ts)) {
+			const token_t token_ = parser->ts[token_idx];
+			if (token_.kind == TOKEN_END) {
+				done = true;
+				break;
+			} else if (token_count == 0) {
+				ast.const_stmt.body = next;
+			}
+
+			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			token_idx++;
+
+			if (parser->ts[token_idx].kind == TOKEN_END) {
+				ast.next = -1;
+			}
+
+			append_ast(ast);
+			token_count++;
+		}
+
+		if (!done) {
+			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
+		}
+
+		if (last_ast.next > 0) {
+			ast.next = last_ast.next;
+		} else {
+			ast.next = next;
+		}
+
+		// indicate the end of the body
+		last_ast.next = -1;
+
+		return ast;
+	} break;
+
 	case TOKEN_PROC: {
 		// Skip `proc` keyword
 		token_idx++;
@@ -57,7 +126,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		ast_t ast = make_ast(0, token->loc_id, ++next, AST_PROC,
 			.proc_stmt = {
-				.name = parser->ts[token_idx++],
+				.name = &parser->ts[token_idx++],
 				.args = NULL,
 				.body = -1,
 			}
@@ -140,7 +209,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		ast_t ast = make_ast(0, token->loc_id, ++next, AST_FUNC,
 			.func_stmt = {
-				.name = parser->ts[token_idx++],
+				.name = &parser->ts[token_idx++],
 				.args = NULL,
 				.body = -1,
 				.ret_type = VALUE_KIND_POISONED
@@ -167,7 +236,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				eprintf("%s error: invalid type: %s\n", loc_to_str(&locid(token_.loc_id)), token_.str);
 				report_error("  NOTE: You might have forgot to specify return type of the function.\n"
 										 "    For example: 'func %s int <...> do <...> end'",
-										 ast.func_stmt.name.str);
+										 ast.func_stmt.name->str);
 			}
 
 			const value_kind_t kind = (value_kind_t) kind_;

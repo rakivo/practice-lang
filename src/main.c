@@ -2,6 +2,7 @@
 
 #include "lib.h"
 #include "ast.h"
+#include "vmem.h"
 #include "file.h"
 #include "lexer.h"
 #include "parser.h"
@@ -30,40 +31,36 @@ main(int argc, const char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	memory_init(1);
+	memory_init(10);
 
-	char line[1024];
-	sss2D_t lines = NULL;
-	u32 lines_skipped = 0;
+	char line[LINE_CAP];
+	size_t lines_count = 0;
+	lines_t lines = (lines_t) malloc(sizeof(lines_t *) * LINES_CAP);
 	while (fgets(line, sizeof(line), file) != NULL) {
-		vec_add(lines, split(line, ' '));
+		lines[lines_count++] = split(line, ' ');
 	}
 
 	fclose(file);
 
-	Lexer lexer = new_lexer(file_.file_id, lines, lines_skipped);
+	Lexer lexer = new_lexer(file_.file_id, lines, lines_count);
 	tokens_t tokens = lexer_lex(&lexer);
 
 #ifdef PRINT_TOKENS
-	FOREACH(token_t, token, tokens) printf("%s\n", token_to_str(&token));
+	for (size_t i = 0; i < lexer.tokens_count; ++i) printf("%s\n", token_to_str(&tokens[i]));
 #endif
 
-	Parser parser = { tokens };
+	Parser parser = new_parser(tokens, lexer.tokens_count);
 	parser_parse(&parser);
 
 #ifdef PRINT_ASTS
-	for (ast_id_t i = 0; i < asts_len; ++i) print_ast(&ast);
+	for (ast_id_t i = 0; i < asts_len; ++i) print_ast(&astid(i));
 #endif
 
 	if (asts_len == 0) goto ret;
 
 	main_function_check(true, astid(0));
 	if(main_function == -1) {
-		if (main_function_not_at_top_level != -1) {
-			report_error("%s error: main function should be at top level",
-									 loc_to_str(&locid(astid(main_function_not_at_top_level).loc_id)));
-		}
-		report_error("%s:0:0: no main function found", file_path);
+		report_error("%s:0:0: no main at top level function found", file_path);
 	}
 
 	if (astid(main_function).func_stmt.ret_type != VALUE_KIND_INTEGER
@@ -71,13 +68,14 @@ main(int argc, const char *argv[])
 	{
 		report_error("%s error: main function has wrong signature. \n"
 								 "  NOTE: expected signature: func int do <...> end",
-								 loc_to_str(&locid(astid(main_function_not_at_top_level).loc_id)));
+								 loc_to_str(&locid(astid(main_function).loc_id)));
 	}
 
 	Compiler compiler = new_compiler(main_function);
 	compiler_compile(&compiler);
 
 ret:
+	free(lines);
 	memory_release();
 	return 0;
 }

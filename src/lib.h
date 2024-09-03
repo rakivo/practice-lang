@@ -211,7 +211,7 @@ static inline void vec_erase_ptr_at(void *vec, unsigned i);
 	case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': case 'q': case 'r': case 's': case 't': \
 	case 'u': case 'v': case 'w': case 'x': case 'y': case 'z'
 #define HEX_CHAR_CASE  'a': case 'b': case 'c': case 'd': case 'e': case 'f': \
-  case 'A': case 'B': case 'C': case 'D': case 'E': case 'F'
+	case 'A': case 'B': case 'C': case 'D': case 'E': case 'F'
 
 #if MEM_PRINT
 #define MALLOC(mem) (printf("Alloc at %s %zu\n", __FUNCTION__, (size_t)(mem)), malloc_arena(mem))

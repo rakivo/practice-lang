@@ -1,6 +1,6 @@
+#include "lib.h"
 #include "lexer.h"
 #include "common.h"
-#include "lib.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -14,6 +14,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_ELSE]	= "else",
 	[TOKEN_WHILE] = "while",
 	[TOKEN_FUNC]	= "func",
+	[TOKEN_CONST] = "const",
 	[TOKEN_DROP]	= "drop",
 	[TOKEN_DUP]   = "dup",
 	[TOKEN_DO]		= "do",
@@ -25,6 +26,7 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_CONST:						return "TOKEN_CONST";						break;
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_FUNC:						return "TOKEN_FUNC";						break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
@@ -46,6 +48,35 @@ token_kind_to_str(const token_kind_t token_kind)
 	case TOKEN_IF:							return "TOKEN_IF";							break;
 	case TOKEN_ELSE:						return "TOKEN_ELSE";						break;
 	case TOKEN_END:							return "TOKEN_END";							break;
+	}
+}
+
+const char *
+token_kind_to_str_pretty(const token_kind_t token_kind)
+{
+	switch (token_kind) {
+	case TOKEN_CONST:						return "const";						break;
+	case TOKEN_PROC:						return "proc";						break;
+	case TOKEN_FUNC:						return "func";						break;
+	case TOKEN_DUP:							return "dup";							break;
+	case TOKEN_DROP:						return "drop";						break;
+	case TOKEN_INTEGER:					return "integer";					break;
+	case TOKEN_LITERAL:					return "literal";					break;
+	case TOKEN_STRING_LITERAL:	return "string literal";	break;
+	case TOKEN_KEYWORDS_END:		return "keywords_end";		break;
+	case TOKEN_PLUS:						return "+";								break;
+	case TOKEN_EQUAL:						return "=";								break;
+	case TOKEN_MINUS:						return "-";								break;
+	case TOKEN_DIV:							return "/";								break;
+	case TOKEN_MUL:							return "*";								break;
+	case TOKEN_DOT:							return ".";								break;
+	case TOKEN_GREATER:					return ">";								break;
+	case TOKEN_LESS:						return "<";								break;
+	case TOKEN_WHILE:						return "while";						break;
+	case TOKEN_DO:							return "do";							break;
+	case TOKEN_IF:							return "if";							break;
+	case TOKEN_ELSE:						return "else";						break;
+	case TOKEN_END:							return "end";							break;
 	}
 }
 
@@ -89,13 +120,14 @@ token_to_str(const token_t *token)
 }
 
 Lexer
-new_lexer(file_id_t file_id, sss2D_t lines, u32 lines_skipped)
+new_lexer(file_id_t file_id, lines_t lines, size_t lines_count)
 {
 	return (Lexer) {
 		.row = 0,
 		.lines = lines,
+		.tokens_count = 0,
 		.file_id = file_id,
-		.lines_skipped = lines_skipped,
+		.lines_count = lines_count,
 	};
 }
 
@@ -113,13 +145,11 @@ new_token(loc_t loc, token_kind_t token_kind, const char *str)
 tokens_t
 lexer_lex(Lexer *lexer)
 {
-	tokens_t ret = NULL;
-
-	FOREACH(sss_t, line, lexer->lines) {
-		lexer_lex_line(lexer, line, &ret);
+	tokens_t ret = (tokens_t) malloc(sizeof(token_t) * TOKENS_CAP);
+	for (size_t i = 0; i < lexer->lines_count; ++i) {
+		lexer_lex_line(lexer, lexer->lines[i], &ret);
 		lexer->row++;
 	}
-
 	return ret;
 }
 
@@ -129,7 +159,6 @@ check_for_keywords(const char *str)
 	for (size_t i = 0; i < KEYWORDS_SIZE; ++i) {
 		if (0 == strcmp(str, KEYWORDS[i])) return i;
 	}
-
 	return -1;
 }
 
@@ -162,19 +191,21 @@ type_token(const char *str, const loc_t *loc)
 }
 
 void
-lexer_lex_line(Lexer *lexer, sss_t line, tokens_t *ret)
+lexer_lex_line(Lexer *lexer, line_t line, tokens_t *ret)
 {
-	FOREACH(ss_t, ss, line) {
+	for (size_t i = 0; i < line.count; ++i) {
+		const ss_t ss = line.items[i];
 		if (ss.str == NULL || *ss.str == '\0' || *ss.str == '#') continue;
 
 		const loc_t loc = (loc_t) {
-			.row = lexer->row + lexer->lines_skipped,
+			.row = lexer->row,
 			.col = ss.col,
 			.file_id = lexer->file_id
 		};
+
 		const token_kind_t kind = type_token(ss.str, &loc);
 		token_t token = new_token(loc, kind, ss.str);
-		vec_add(*ret, token);
+		(*ret)[lexer->tokens_count++] = token;
 	}
 }
 
@@ -186,7 +217,7 @@ INLINE size_t utf8_char_len(unsigned char c)
 	return 4;
 }
 
-sss_t
+line_t
 split(char *input, char delim)
 {
 	// trim newline from `fgets`
@@ -218,7 +249,10 @@ split(char *input, char delim)
 
 	const size_t len = strlen(input);
 
-	sss_t ret = NULL;
+	line_t ret = {
+		.count = 0,
+		.items = (sss_t) malloc(sizeof(ss_t) * 1024)
+	};
 
 	size_t s = 0;
 	size_t e = 0;
@@ -240,10 +274,11 @@ split(char *input, char delim)
 				for (size_t i_ = s; i_ < i; ++i_) {
 					scratch_buffer_append_char(input[i_]);
 				}
-				vec_add(ret, (ss_t) {
+
+				ret.items[ret.count++] = (ss_t) {
 					.col = s + lspace_count,
 					.str = scratch_buffer_copy(),
-				});
+				};
 
 				s = i + utf8_char_len(c);
 
@@ -259,19 +294,19 @@ split(char *input, char delim)
 	if (s + e == 0 && i > 0) {
 		scratch_buffer_clear();
 		scratch_buffer_append(input);
-		vec_add(ret, (ss_t) {
+		ret.items[ret.count++] = (ss_t) {
 			.col = s + lspace_count,
 			.str = scratch_buffer_copy(),
-		});
+		};
 	} else if (s != e) {
 		scratch_buffer_clear();
 		for (size_t i = s; i < len; ++i) {
 			scratch_buffer_append_char(input[i]);
 		}
-		vec_add(ret, (ss_t) {
+		ret.items[ret.count++] = (ss_t) {
 			.col = s + lspace_count,
 			.str = scratch_buffer_copy(),
-		});
+		};
 	}
 
 	return ret;

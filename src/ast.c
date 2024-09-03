@@ -7,7 +7,6 @@
 DECLARE_STATIC(ast, AST);
 
 ast_id_t main_function = -1;
-ast_id_t main_function_not_at_top_level = -1;
 
 i32
 value_kind_try_from_str(const char *str)
@@ -63,6 +62,13 @@ print_ast(const ast_t *ast)
 	printf("ast_kind: ");
 
 	switch (ast->ast_kind) {
+	case AST_CONST: {
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
+		printf("constexpr: %b\n", ast->const_stmt.constexpr);
+		printf("body: %d\n", ast->const_stmt.body);
+		printf("name: %s\n", ast->const_stmt.name->str);
+	} break;
+
 	case AST_LITERAL: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("str: %s\n", ast->literal.str);
@@ -70,7 +76,7 @@ print_ast(const ast_t *ast)
 
 	case AST_FUNC: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
-		printf("name: %s\n", ast->func_stmt.name.str);
+		printf("name: %s\n", ast->func_stmt.name->str);
 		FOREACH(arg_t, proc_arg, ast->func_stmt.args) {
 			printf("arg: %s\n", arg_to_str(&proc_arg));
 		}
@@ -80,7 +86,7 @@ print_ast(const ast_t *ast)
 
 	case AST_PROC: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
-		printf("name: %s\n", ast->proc_stmt.name.str);
+		printf("name: %s\n", ast->proc_stmt.name->str);
 		FOREACH(arg_t, arg, ast->proc_stmt.args) {
 			printf("arg: %s\n", arg_to_str(&arg));
 		}
@@ -143,24 +149,18 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 	case AST_EQUAL:			return "AST_EQUAL";			break;
 	case AST_LESS:			return "AST_LESS";			break;
 	case AST_GREATER:		return "AST_GREATER";		break;
+	case AST_CONST:			return "AST_CONST";		break;
 	}
 }
 
 void
 main_function_check(bool at_top_level, ast_t ast)
 {
-	if (ast.ast_kind == AST_IF) {
-		if (ast.if_stmt.then_body > 0) main_function_check(false, astid(ast.if_stmt.then_body));
-		if (ast.if_stmt.else_body > 0) main_function_check(false, astid(ast.if_stmt.else_body));
-	} else if (ast.ast_kind == AST_WHILE) {
-		if (ast.while_stmt.body > 0) main_function_check(false, astid(ast.while_stmt.body));
-	} else if (ast.ast_kind == AST_PROC) {
-		main_function_check(false, astid(ast.next));
-	} else if (ast.ast_kind == AST_FUNC) {
-		if (0 == strcmp(MAIN_FUNCTION, ast.func_stmt.name.str)) {
-			if (at_top_level) main_function = ast.ast_id;
-			else main_function_not_at_top_level = ast.ast_id;
-		} else main_function_check(false, astid(ast.next));
+	if (ast.ast_kind == AST_FUNC
+	&& 0 == strcmp(MAIN_FUNCTION, ast.func_stmt.name->str))
+	{
+		main_function = ast.ast_id;
+		return;
 	}
 
 	if (ast.next < 0 || ast.ast_kind == AST_POISONED) return;

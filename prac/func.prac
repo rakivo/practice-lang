@@ -1,8 +1,3 @@
-func foo int
-do
-  0
-end
-
 func sum int
   int a
   int b
@@ -10,7 +5,14 @@ do
   a b +
 end
 
+func square int
+  int x
+do
+  x x *
+end
+
 func main int
 do
+  4 square! .
   0
 end
