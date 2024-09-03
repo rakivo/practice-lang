@@ -113,6 +113,7 @@ print_ast(const ast_t *ast)
 	} break;
 
 	case AST_DUP:			 printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_SYSCALL:	 printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_DROP:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
@@ -132,6 +133,7 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
 	case AST_CALL:			return "AST_CALL";			break;
+	case AST_SYSCALL:		return "AST_SYSCALL";		break;
 	case AST_FUNC:			return "AST_FUNC";			break;
 	case AST_DUP:				return "AST_DUP";				break;
 	case AST_LITERAL:		return "AST_LITERAL";		break;

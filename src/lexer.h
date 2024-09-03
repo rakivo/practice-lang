@@ -24,6 +24,13 @@ typedef enum {
 	TOKEN_CONST,
 	TOKEN_DROP,
 	TOKEN_PROC,
+	TOKEN_SYSCALL,
+	TOKEN_SYSCALL1,
+	TOKEN_SYSCALL2,
+	TOKEN_SYSCALL3,
+	TOKEN_SYSCALL4,
+	TOKEN_SYSCALL5,
+	TOKEN_SYSCALL6,
 	TOKEN_END,
 
 	// Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.

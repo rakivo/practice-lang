@@ -1,0 +1,11 @@
+proc write
+  int fd
+  str buf
+  int count
+do
+  fd buf count 1 syscall3
+end
+
+func main int do
+  1 "hello\n" 6 write! 0
+end

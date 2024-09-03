@@ -10,22 +10,36 @@
 DECLARE_STATIC(loc, LOC);
 
 const char *KEYWORDS[KEYWORDS_SIZE] = {
-	[TOKEN_IF]		= "if",
-	[TOKEN_ELSE]	= "else",
-	[TOKEN_WHILE] = "while",
-	[TOKEN_FUNC]	= "func",
-	[TOKEN_CONST] = "const",
-	[TOKEN_DROP]	= "drop",
-	[TOKEN_DUP]   = "dup",
-	[TOKEN_DO]		= "do",
-	[TOKEN_PROC]  = "proc",
-	[TOKEN_END]		= "end"
+	[TOKEN_IF]				= "if",
+	[TOKEN_ELSE]			= "else",
+	[TOKEN_WHILE]			= "while",
+	[TOKEN_FUNC]			= "func",
+	[TOKEN_CONST]			= "const",
+	[TOKEN_DROP]			= "drop",
+	[TOKEN_DUP]				= "dup",
+	[TOKEN_DO]				= "do",
+	[TOKEN_PROC]			= "proc",
+	[TOKEN_SYSCALL]		= "syscall",
+	[TOKEN_SYSCALL1]	= "syscall1",
+	[TOKEN_SYSCALL2]	= "syscall2",
+	[TOKEN_SYSCALL3]	= "syscall3",
+	[TOKEN_SYSCALL4]	= "syscall4",
+	[TOKEN_SYSCALL5]	= "syscall5",
+	[TOKEN_SYSCALL6]	= "syscall6",
+	[TOKEN_END]				= "end"
 };
 
 const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_SYSCALL:					return "TOKEN_SYSCALL";					break;
+	case TOKEN_SYSCALL1:				return "TOKEN_SYSCALL1";				break;
+	case TOKEN_SYSCALL2:				return "TOKEN_SYSCALL2";				break;
+	case TOKEN_SYSCALL3:				return "TOKEN_SYSCALL3";				break;
+	case TOKEN_SYSCALL4:				return "TOKEN_SYSCALL4";				break;
+	case TOKEN_SYSCALL5:				return "TOKEN_SYSCALL5";				break;
+	case TOKEN_SYSCALL6:				return "TOKEN_SYSCALL6";				break;
 	case TOKEN_CONST:						return "TOKEN_CONST";						break;
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_FUNC:						return "TOKEN_FUNC";						break;
@@ -56,6 +70,13 @@ token_kind_to_str_pretty(const token_kind_t token_kind)
 {
 	switch (token_kind) {
 	case TOKEN_CONST:						return "const";						break;
+	case TOKEN_SYSCALL:					return "syscall";					break;
+	case TOKEN_SYSCALL1:				return "syscall1";				break;
+	case TOKEN_SYSCALL2:				return "syscall2";				break;
+	case TOKEN_SYSCALL3:				return "syscall3";				break;
+	case TOKEN_SYSCALL4:				return "syscall4";				break;
+	case TOKEN_SYSCALL5:				return "syscall5";				break;
+	case TOKEN_SYSCALL6:				return "syscall6";				break;
 	case TOKEN_PROC:						return "proc";						break;
 	case TOKEN_FUNC:						return "func";						break;
 	case TOKEN_DUP:							return "dup";							break;

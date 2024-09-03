@@ -64,6 +64,10 @@ static const char **strs = NULL;
 static bool used_strlen = false;
 static bool used_dmp_i64 = false;
 
+static const char *X86_64_LINUX_CONVENTION_REGISTERS[6] = {
+	"rdi", "rsi", "rdx", "r10", "r8", "r9"
+};
+
 typedef struct {
 	bool is_used;
 	ast_id_t ast_id;
@@ -301,6 +305,25 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		}
 
 		wprintln("._edon_%zu:", curr_label);
+	} break;
+
+	case AST_SYSCALL: {
+		const size_t stack_size = get_stack_size(ctx);
+		if (stack_size < ast->syscall.args_count + 1) {
+			report_error("%s error: too few arguments to call: `syscall%d`",
+									 loc_to_str(&locid(ast->loc_id)),
+									 ast->syscall.args_count);
+		}
+
+		// Pop syscall number
+		wtln("pop rax");
+
+		// Pop all the shit in the reversed order
+		for (u8 i = 0; i < ast->syscall.args_count; ++i) {
+			wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[ast->syscall.args_count - 1 - i]);
+		}
+
+		wtln("syscall");
 	} break;
 
 	case AST_WHILE: {

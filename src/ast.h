@@ -54,6 +54,10 @@ typedef struct {} dup_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
+	u8 args_count;
+} syscall_t;
+
+typedef struct {
 	const token_t *name;
 	ast_id_t body;
 	bool constexpr;
@@ -127,6 +131,7 @@ typedef enum {
 	AST_DROP,
 	AST_GREATER,
 	AST_CONST,
+	AST_SYSCALL,
 	AST_LITERAL,
 } ast_kind_t;
 
@@ -138,6 +143,7 @@ typedef struct {
 	ast_kind_t ast_kind;
 
 	union {
+		syscall_t syscall;
 		if_stmt_t if_stmt;
 		dot_stmt_t dot_stmt;
 		plus_stmt_t plus_stmt;

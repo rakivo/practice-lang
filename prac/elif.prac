@@ -1,0 +1,11 @@
+const N 10 end
+
+func main int do
+  N 5 < if
+    1 .
+  end N 10 < elif
+    2 .
+  end N 10 < elif
+    3 .
+  end
+end

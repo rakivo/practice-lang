@@ -51,6 +51,7 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	case AST_PROC:
 	case AST_WHILE:
 	case AST_CALL:
+	case AST_SYSCALL:
 	case AST_CONST: {
 		report_error("%s error: unexpected operation, "
 								 "supported operations in constant evaluation:\n"
