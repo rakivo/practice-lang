@@ -1,4 +1,5 @@
-const N 10 dup * end
+const A 69 end
+const N 10 A * end
 
 func main int do
   N . 0

@@ -88,7 +88,7 @@ main(int argc, const char *argv[])
 								 loc_to_str(&locid(astid(main_function).loc_id)));
 	}
 
-	Consteval consteval = new_consteval();
+	Consteval consteval = new_consteval(&const_map);
 	ast_t ast = astid(0);
 	while (ast.next && ast.next <= ASTS_SIZE) {
 		if (ast.ast_kind == AST_CONST) {

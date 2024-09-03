@@ -2,7 +2,6 @@
 #define COMPILER_H_
 
 #include "ast.h"
-#include "consteval.h"
 
 #define MAX_STACK_TYPES_CAP 1024
 #define PROC_CTX_MAX_STACK_TYPES_CAP 512
@@ -27,6 +26,11 @@ typedef struct {
 } func_ctx_t;
 
 // Consteval only for integers right now
+typedef struct {
+	i64 value;
+	value_kind_t kind;
+} consteval_value_t;
+
 typedef struct {
 	const char *key;
 	consteval_value_t value;

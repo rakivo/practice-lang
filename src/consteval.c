@@ -3,10 +3,15 @@
 #include "common.h"
 #include "consteval.h"
 
+#include "stb_ds.h"
+
 Consteval
-new_consteval(void)
+new_consteval(const_map_t **const_map)
 {
-	return (Consteval) {0};
+	return (Consteval) {
+		.const_map = const_map,
+		.stack_size = 0,
+	};
 }
 
 typedef enum {
@@ -154,6 +159,17 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	} break;
 
 	case AST_LITERAL: {
+		const i32 const_idx = shgeti(*consteval->const_map, ast->literal.str);
+		if (const_idx == -1) {
+			report_error("%s error: undefined literal: `%s`",
+						 loc_to_str(&locid(ast->loc_id)),
+						 ast->literal.str);
+		}
+
+		consteval->stack[consteval->stack_size++] = (consteval_value_t) {
+			.value = (*consteval->const_map)[const_idx].value.value,
+			.kind = (*consteval->const_map)[const_idx].value.kind,
+		};
 	} break;
 
 	case AST_POISONED: UNREACHABLE break;
