@@ -1,4 +1,4 @@
-const hello 10 end
+const N 10 dup * end
 
 func main int do
   N . 0

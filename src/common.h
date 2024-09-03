@@ -8,7 +8,7 @@
 // #define PRINT_TOKENS
 // #define PRINT_ASTS
 // #define MEM_PRINT 1
-#define DEBUG 1
+// #define DEBUG 1
 
 typedef int64_t i64;
 typedef int32_t i32;
@@ -31,8 +31,9 @@ main_deinit(void);
 
 // Report error, release memory and exit
 #define report_error(fmt, ...) do { \
+	report_error_noexit(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
 	main_deinit(); \
-	report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+	exit(EXIT_FAILURE); \
 } while (0)
 
 /* ------------------------------------------------------- */
@@ -148,6 +149,7 @@ main_deinit(void);
 
 void eprintf(const char *format, ...);
 void evprintf(const char *format, va_list list);
+void report_error_noexit(const char *func, const char *file, const size_t line, const char *format, ...);
 NORETURN void report_error_(const char *func, const char *file, const size_t line, const char *format, ...);
 NORETURN void error_exit(const char *format, ...) ;
 

@@ -10,8 +10,9 @@
 
 #undef report_error
 #define report_error(fmt, ...) do { \
+	report_error_noexit(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
 	main_deinit(); \
-	report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+	exit(EXIT_FAILURE); \
 } while (0)
 
 INLINE i64
@@ -209,7 +210,11 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `proc` keyword
 		token_idx++;
 
-		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
+		if ((token_idx > parser->tc
+			|| parser->ts[token_idx].kind != TOKEN_LITERAL)
+				|| (parser->ts[token_idx].kind == TOKEN_LITERAL
+					&& value_kind_try_from_str(parser->ts[token_idx].str) != -1))
+		{
 			report_error("%s error: func without a name", loc_to_str(&locid(token->loc_id)));
 		}
 

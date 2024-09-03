@@ -3,7 +3,6 @@
 #include "common.h"
 #include "compiler.h"
 
-#define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
 
 #include <stdio.h>
@@ -12,8 +11,9 @@
 
 #undef report_error
 #define report_error(fmt, ...) do { \
-	compiler_emergency_exit(); \
-	report_error_(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+	report_error_noexit(__func__, __FILE__, __LINE__, fmt, __VA_ARGS__); \
+	compiler_emergency_clean(); \
+	exit(EXIT_FAILURE); \
 } while (0)
 
 #define TAB "\t"
@@ -82,7 +82,7 @@ static void
 compiler_deinit(void);
 
 static void
-compiler_emergency_exit(void);
+compiler_emergency_clean(void);
 
 INLINE void
 scratch_buffer_genstr(void)
@@ -378,7 +378,12 @@ compile_loop:
 
 	case AST_LITERAL: {
 		const i32 value_idx = shgeti(values_map, ast->literal.str);
-		if (value_idx != -1) {
+		const i32 const_idx = shgeti(ctx->const_map, ast->literal.str);
+		if (const_idx != -1) {
+			const consteval_value_t value = ctx->const_map[const_idx].value;
+			wtprintln("push 0x%lX", value.value);
+			stack_add_type(ctx, value.kind);
+		} else if (value_idx != -1) {
 			const value_t value = values_map[value_idx].value;
 			if (value.ast_kind == AST_PROC) {
 				wtprintln("push __%s__", astid(value.ast_id).proc_stmt.name->str);
@@ -781,7 +786,7 @@ print_data_section(void)
 }
 
 Compiler
-new_compiler(ast_id_t ast_cur)
+new_compiler(ast_id_t ast_cur, const_map_t *const_map)
 {
 	return (Compiler) {
 		.ast_cur = ast_cur,
@@ -790,6 +795,7 @@ new_compiler(ast_id_t ast_cur)
 			.stack_size = 0,
 			.called_funcptr = false
 		},
+		.const_map = const_map
 	};
 }
 
@@ -801,7 +807,7 @@ compiler_deinit(void)
 }
 
 static void
-compiler_emergency_exit(void)
+compiler_emergency_clean(void)
 {
 	compiler_deinit();
 	main_deinit();

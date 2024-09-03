@@ -20,6 +20,24 @@ void eprintf(const char *format, ...)
 	va_end(arglist);
 }
 
+void
+report_error_noexit(const char *func, const char *file,
+							const size_t line, const char *format, ...)
+{
+#ifdef DEBUG
+	eprintf("%s:%d: in %s(...)\n", file, line, func);
+#else
+	UNUSED_VAR(func);
+	UNUSED_VAR(file);
+	UNUSED_VAR(line);
+#endif
+	va_list arglist;
+	va_start(arglist, format);
+	vfprintf(stderr, format, arglist);
+	fprintf(stderr, "\n");
+	va_end(arglist);
+}
+
 NORETURN void
 report_error_(const char *func, const char *file,
 							const size_t line, const char *format, ...)
@@ -36,7 +54,6 @@ report_error_(const char *func, const char *file,
 	vfprintf(stderr, format, arglist);
 	fprintf(stderr, "\n");
 	va_end(arglist);
-	memory_release();
 	exit(EXIT_FAILURE);
 }
 
