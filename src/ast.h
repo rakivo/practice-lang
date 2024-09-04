@@ -47,6 +47,8 @@ typedef struct {} minus_stmt_t;
 typedef struct {} div_stmt_t;
 typedef struct {} mul_stmt_t;
 typedef struct {} dot_stmt_t;
+typedef struct {} bor_stmt_t;
+typedef struct {} mod_stmt_t;
 typedef struct {} less_stmt_t;
 typedef struct {} greater_stmt_t;
 typedef struct {} drop_stmt_t;
@@ -120,6 +122,8 @@ typedef enum {
 	AST_WHILE,
 	AST_DOT,
 	AST_DUP,
+	AST_BOR,
+	AST_MOD,
 	AST_PUSH,
 	AST_MUL,
 	AST_DIV,
@@ -160,6 +164,8 @@ typedef struct {
 		proc_stmt_t proc_stmt;
 		func_stmt_t func_stmt;
 		const_stmt_t const_stmt;
+		bor_stmt_t bor_stmt;
+		mod_stmt_t mod_stmt;
 		call_t call;
 		literal_t literal;
 	};

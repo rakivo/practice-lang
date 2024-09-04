@@ -40,10 +40,12 @@ token_kind_to_str(const token_kind_t token_kind)
 	case TOKEN_SYSCALL4:				return "TOKEN_SYSCALL4";				break;
 	case TOKEN_SYSCALL5:				return "TOKEN_SYSCALL5";				break;
 	case TOKEN_SYSCALL6:				return "TOKEN_SYSCALL6";				break;
+	case TOKEN_MOD:							return "TOKEN_MOD";							break;
 	case TOKEN_CONST:						return "TOKEN_CONST";						break;
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_FUNC:						return "TOKEN_FUNC";						break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
+	case TOKEN_BOR:							return "TOKEN_BOR";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;
 	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;
 	case TOKEN_LITERAL:					return "TOKEN_LITERAL";					break;
@@ -86,6 +88,8 @@ token_kind_to_str_pretty(const token_kind_t token_kind)
 	case TOKEN_STRING_LITERAL:	return "string literal";	break;
 	case TOKEN_KEYWORDS_END:		return "keywords_end";		break;
 	case TOKEN_PLUS:						return "+";								break;
+	case TOKEN_MOD:							return "%";								break;
+	case TOKEN_BOR:							return "|";								break;
 	case TOKEN_EQUAL:						return "=";								break;
 	case TOKEN_MINUS:						return "-";								break;
 	case TOKEN_DIV:							return "/";								break;
@@ -204,6 +208,8 @@ type_token(const char *str, const loc_t *loc)
 	case '-': return TOKEN_MINUS;						break;
 	case '/': return TOKEN_DIV;							break;
 	case '*': return TOKEN_MUL;							break;
+	case '%': return TOKEN_MOD;							break;
+	case '|': return TOKEN_BOR;							break;
 	case '=': return TOKEN_EQUAL;						break;
 	case '"': return TOKEN_STRING_LITERAL;	break;
 	}

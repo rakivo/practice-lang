@@ -556,6 +556,12 @@ compile_loop:
 		stack_pop(ctx);
 	} break;
 
+	case AST_BOR: {
+		check_for_two_integers_on_the_stack(ctx, "|", ast);
+		print_binop("or rax, rbx");
+		stack_pop(ctx);
+	} break;
+
 	case AST_MINUS: {
 		check_for_two_integers_on_the_stack(ctx, "-", ast);
 		print_binop("sub rax, rbx");
@@ -566,6 +572,15 @@ compile_loop:
 		check_for_two_integers_on_the_stack(ctx, "/", ast);
 		wtln("xor edx, edx");
 		print_binop("div rbx");
+	} break;
+
+	case AST_MOD: {
+		check_for_two_integers_on_the_stack(ctx, "%", ast);
+		wtln("xor edx, edx");
+		wtln("pop rbx");
+		wtln("mov rax, qword [rsp]");
+		wtln("div rbx");
+		wtln("mov [rsp], rdx");
 	} break;
 
 	case AST_MUL: {

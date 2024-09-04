@@ -19,10 +19,42 @@ typedef enum {
 	MINUS,
 	DIV,
 	MUL,
+	BOR,
+	MOD,
 	LESS,
 	GREATER,
 	EQUAL
 } op_t;
+
+static op_t
+op_from_ast_kind(ast_kind_t ast_kind)
+{
+	switch (ast_kind) {
+	case AST_BOR:			return BOR;
+	case AST_MOD:			return MOD;
+	case AST_MUL:			return MUL;
+	case AST_DIV:			return DIV;
+	case AST_MINUS:		return MINUS;
+	case AST_PLUS:		return PLUS;
+	case AST_LESS:		return LESS;
+	case AST_EQUAL:		return EQUAL;
+	case AST_GREATER: return GREATER;
+
+	case AST_POISONED:
+	case AST_IF:
+	case AST_FUNC:
+	case AST_PROC:
+	case AST_WHILE:
+	case AST_DOT:
+	case AST_DUP:
+	case AST_PUSH:
+	case AST_CALL:
+	case AST_DROP:
+	case AST_CONST:
+	case AST_SYSCALL:
+	case AST_LITERAL: UNREACHABLE;
+	}
+}
 
 static i64
 last_two_binop(Consteval *consteval, op_t op)
@@ -32,9 +64,11 @@ last_two_binop(Consteval *consteval, op_t op)
 	const i64 b = consteval->stack[consteval->stack_size - 1].value;
 	switch (op) {
 	case PLUS:		return a + b;
-	case MINUS:		return a - b;
-	case DIV:			return a / b;
+	case BOR:			return a | b;
+	case MINUS:		return b - b;
+	case DIV:			return b / a;
 	case MUL:			return a * b;
+	case MOD:			return b % a;
 	case GREATER: return b > a;
 	case LESS:		return b < a;
 	case EQUAL:		return b == a;
@@ -55,7 +89,7 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	case AST_CONST: {
 		report_error("%s error: unexpected operation, "
 								 "supported operations in constant evaluation:\n"
-								 "    `dup`, `push`, `drop`, `*`, `/`, `-`, `+`, `<`, `>`, `=` or another constant literal",
+								 "    `dup`, `push`, `drop`, `*`, `/`, `-`, `+`, `<`, `>`, `=`, `|` or another constant literal",
 								 loc_to_str(&locid(ast->loc_id)));
 	} break;
 
@@ -92,71 +126,26 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 		consteval->stack[consteval->stack_size++] = value;
 	} break;
 
+	case AST_PLUS:
+	case AST_MINUS:
+	case AST_DIV:
+	case AST_BOR:
+	case AST_LESS:
+	case AST_GREATER:
+	case AST_MOD:
+	case AST_EQUAL:
 	case AST_MUL: {
 		if (consteval->stack_size < 2) {
 			report_error("%s error: stack underflow bruv",
 									 loc_to_str(&locid(ast->loc_id)));
 		}
 
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, MUL);
-	} break;
-
-	case AST_DIV: {
-		if (consteval->stack_size < 2) {
-			report_error("%s error: stack underflow bruv",
-									 loc_to_str(&locid(ast->loc_id)));
-		}
-
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, DIV);
-	} break;
-
-	case AST_MINUS: {
-		if (consteval->stack_size < 2) {
-			report_error("%s error: stack underflow bruv",
-									 loc_to_str(&locid(ast->loc_id)));
-		}
-
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, MINUS);
-	} break;
-
-	case AST_PLUS: {
-		if (consteval->stack_size < 2) {
-			report_error("%s error: stack underflow bruv",
-									 loc_to_str(&locid(ast->loc_id)));
-		}
-
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, PLUS);
-	} break;
-
-	case AST_LESS: {
-		if (consteval->stack_size < 2) {
-			report_error("%s error: stack underflow bruv",
-									 loc_to_str(&locid(ast->loc_id)));
-		}
-
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, LESS);
-	} break;
-
-	case AST_EQUAL: {
-		if (consteval->stack_size < 2) {
-			report_error("%s error: stack underflow bruv",
-									 loc_to_str(&locid(ast->loc_id)));
-		}
-
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, EQUAL);
+		consteval->stack[consteval->stack_size - 1].value =
+			last_two_binop(consteval, op_from_ast_kind(ast->ast_kind));
 	} break;
 
 	case AST_DROP: {
 		consteval->stack_size--;
-	} break;
-
-	case AST_GREATER: {
-		if (consteval->stack_size < 2) {
-			report_error("%s error: stack underflow bruv",
-									 loc_to_str(&locid(ast->loc_id)));
-		}
-
-		consteval->stack[consteval->stack_size - 1].value = last_two_binop(consteval, GREATER);
 	} break;
 
 	case AST_LITERAL: {

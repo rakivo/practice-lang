@@ -356,7 +356,14 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.while_stmt.body = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+
+			if (parser->ts[token_idx].kind == TOKEN_END
+			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
+			{
+				ast.next = -1;
+			}
+
 			append_ast(ast);
 			token_idx++;
 			token_count++;
@@ -418,7 +425,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.if_stmt.then_body = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+
 			if (token_.kind != TOKEN_ELSE) token_idx++;
 			append_ast(ast);
 			token_count++;
@@ -428,7 +436,11 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
 		}
 
-		if (last_ast.next > 0) {
+		if (parser->ts[token_idx].kind == TOKEN_END
+		&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
+		{
+			ast.next = -1;
+		} else if (last_ast.next > 0) {
 			ast.next = last_ast.next;
 		} else {
 			ast.next = next;
@@ -495,10 +507,12 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	case TOKEN_SYSCALL4:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {4});
 	case TOKEN_SYSCALL5:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {5});
 	case TOKEN_SYSCALL6:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {6});
+	case TOKEN_BOR:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_BOR,			.bor_stmt			= {0});
 	case TOKEN_MUL:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_MUL,			.mul_stmt			= {0});
 	case TOKEN_DIV:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DIV,			.div_stmt			= {0});
 	case TOKEN_MINUS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_MINUS,		.minus_stmt		= {0});
 	case TOKEN_PLUS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_PLUS,			.plus_stmt		= {0});
+	case TOKEN_MOD:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_MOD,			.mod_stmt			= {0});
 	case TOKEN_DOT:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DOT,			.dot_stmt			= {0});
 	}
 	UNREACHABLE;
