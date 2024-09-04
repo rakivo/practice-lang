@@ -1012,12 +1012,15 @@ compiler_compile(Compiler *ctx)
 	ast = astid(ctx->ast_cur);
 	compile_func(ctx, &ast);
 
+	// TODO: Properly check if procedure/function is used or not
 	// Compile only used procs/funcs
 	for (ptrdiff_t i = 0; i < shlen(values_map); ++i) {
 		const value_t value = values_map[i].value;
-		if (value.ast_kind == AST_PROC && value.is_used) {
+		if (value.ast_kind == AST_PROC // && value.is_used
+		)
+		{
 			compile_proc(ctx, &astid(value.ast_id));
-		} else if (value.ast_kind == AST_FUNC && value.is_used
+		} else if (value.ast_kind == AST_FUNC // && value.is_used
 					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name->str))
 		{
 			compile_func(ctx, &astid(value.ast_id));
