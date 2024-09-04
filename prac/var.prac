@@ -1,0 +1,8 @@
+var sum 0 end
+
+func main int do
+  69 !sum
+  sum! .
+
+  0
+end

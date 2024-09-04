@@ -37,14 +37,21 @@ typedef struct {
 } const_map_t;
 
 typedef struct {
+	const char *key;
+	consteval_value_t value;
+} var_map_t;
+
+typedef struct {
 	ast_id_t ast_cur;
 	proc_ctx_t proc_ctx;
 	func_ctx_t func_ctx;
+
+	var_map_t *var_map;
 	const_map_t *const_map;
 } Compiler;
 
 Compiler
-new_compiler(ast_id_t ast_cur, const_map_t *const_map);
+new_compiler(ast_id_t ast_cur, const_map_t *const_map, var_map_t *var_map);
 
 void
 compiler_compile(Compiler *compiler);

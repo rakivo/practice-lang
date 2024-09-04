@@ -66,6 +66,12 @@ typedef struct {
 } const_stmt_t;
 
 typedef struct {
+	const token_t *name;
+	ast_id_t body;
+	bool constexpr;
+} var_stmt_t;
+
+typedef struct {
 	value_kind_t kind;
 	loc_id_t loc_id;
 	const char *name;
@@ -86,6 +92,10 @@ typedef struct {
 	ast_id_t body;
 	value_kind_t ret_type;
 } func_stmt_t;
+
+typedef struct {
+	const token_t *token;
+} write_stmt_t;
 
 typedef struct {
 	const char *str;
@@ -132,8 +142,10 @@ typedef enum {
 	AST_LESS,
 	AST_EQUAL,
 	AST_CALL,
+	AST_WRITE,
 	AST_DROP,
 	AST_GREATER,
+	AST_VAR,
 	AST_CONST,
 	AST_SYSCALL,
 	AST_LITERAL,
@@ -164,8 +176,10 @@ typedef struct {
 		proc_stmt_t proc_stmt;
 		func_stmt_t func_stmt;
 		const_stmt_t const_stmt;
+		var_stmt_t var_stmt;
 		bor_stmt_t bor_stmt;
 		mod_stmt_t mod_stmt;
+		write_stmt_t write_stmt;
 		call_t call;
 		literal_t literal;
 	};

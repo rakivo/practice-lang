@@ -18,6 +18,7 @@
 static lines_t lines = NULL;
 static size_t lines_count = 0;
 static tokens_t tokens = NULL;
+static var_map_t *var_map = NULL;
 static const_map_t *const_map = NULL;
 
 void
@@ -26,6 +27,7 @@ main_deinit(void)
 	for (size_t i = 0; i < lines_count; ++i) free(lines[i].items);
 	free(lines);
 	free(tokens);
+	shfree(var_map);
 	shfree(const_map);
 	memory_release();
 }
@@ -92,13 +94,16 @@ main(int argc, const char *argv[])
 	ast_t ast = astid(0);
 	while (ast.next && ast.next <= ASTS_SIZE) {
 		if (ast.ast_kind == AST_CONST) {
-			const consteval_value_t value = consteval_eval(&consteval, &ast);
+			const consteval_value_t value = consteval_eval(&consteval, &ast, false);
 			shput(const_map, ast.const_stmt.name->str, value);
+		} else if (ast.ast_kind == AST_VAR) {
+			const consteval_value_t value = consteval_eval(&consteval, &ast, true);
+			shput(var_map, ast.var_stmt.name->str, value);
 		}
 		ast = astid(ast.next);
 	}
 
-	Compiler compiler = new_compiler(main_function, const_map);
+	Compiler compiler = new_compiler(main_function, const_map, var_map);
 	compiler_compile(&compiler);
 
 ret:

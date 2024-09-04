@@ -1,17 +1,29 @@
 # This solution just prints all the numbers that need to be summed up, rather than summing them up itself, because the language currently lacks both variables and swap function.
 
+var sum 0 end
+var is_mod3 0 end
+var is_mod5 0 end
+
 proc solve do
   0 while dup 999 < do
+    # x += 1
     1 +
 
-    dup 3 % 0 = if
-      .
-    else dup 5 % 0 = if
-      .
-    end end
+    # x % 3 == 0
+    dup 3 % 0 = !is_mod3
+
+    # x % 5 == 0
+    dup 5 % 0 = !is_mod5
+
+    # is_mod3 | is_mod5
+    is_mod3! is_mod5! | if
+      # sum += x
+      dup sum! + !sum
+    end
   end
 end
 
 func main int do
-  solve! 0
+  solve!
+  sum! . 0
 end

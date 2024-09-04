@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "common.h"
+#include "lexer.h"
 #include "lib.h"
 
 #include <string.h>
@@ -62,6 +63,17 @@ print_ast(const ast_t *ast)
 	printf("ast_kind: ");
 
 	switch (ast->ast_kind) {
+	case AST_WRITE: {
+		token_to_str(ast->write_stmt.token);
+	} break;
+
+	case AST_VAR: {
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
+		printf("constexpr: %b\n", ast->var_stmt.constexpr);
+		printf("body: %d\n", ast->var_stmt.body);
+		printf("name: %s\n", ast->var_stmt.name->str);
+	} break;
+
 	case AST_CONST: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("constexpr: %b\n", ast->const_stmt.constexpr);
@@ -135,6 +147,8 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
 	case AST_CALL:			return "AST_CALL";			break;
+	case AST_WRITE:			return "AST_WRITE";			break;
+	case AST_VAR:				return "AST_VAR";				break;
 	case AST_BOR:				return "AST_BOR";				break;
 	case AST_MOD:				return "AST_MOD";				break;
 	case AST_SYSCALL:		return "AST_SYSCALL";		break;

@@ -17,8 +17,7 @@ typedef struct {
 Consteval
 new_consteval(const_map_t **const_map);
 
-// Only for integers right now
 consteval_value_t
-consteval_eval(Consteval *consteval, const ast_t *const_ast);
+consteval_eval(Consteval *consteval, const ast_t *const_ast, bool is_var);
 
 #endif // CONSTEVAL_H_

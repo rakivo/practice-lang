@@ -43,6 +43,7 @@ op_from_ast_kind(ast_kind_t ast_kind)
 	case AST_POISONED:
 	case AST_IF:
 	case AST_FUNC:
+	case AST_VAR:
 	case AST_PROC:
 	case AST_WHILE:
 	case AST_DOT:
@@ -52,6 +53,7 @@ op_from_ast_kind(ast_kind_t ast_kind)
 	case AST_DROP:
 	case AST_CONST:
 	case AST_SYSCALL:
+	case AST_WRITE:
 	case AST_LITERAL: UNREACHABLE;
 	}
 }
@@ -86,6 +88,8 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	case AST_WHILE:
 	case AST_CALL:
 	case AST_SYSCALL:
+	case AST_VAR:
+	case AST_WRITE:
 	case AST_CONST: {
 		report_error("%s error: unexpected operation, "
 								 "supported operations in constant evaluation:\n"
@@ -167,10 +171,10 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 }
 
 consteval_value_t
-consteval_eval(Consteval *consteval, const ast_t *const_ast)
+consteval_eval(Consteval *consteval, const ast_t *const_ast, bool is_var)
 {
 	consteval->stack_size = 0;
-	ast_t ast = astid(const_ast->const_stmt.body);
+	ast_t ast = astid(is_var ? const_ast->var_stmt.body : const_ast->const_stmt.body);
 	while (ast.next && ast.next <= ASTS_SIZE) {
 		simulate_ast(consteval, &ast);
 		ast = astid(ast.next);
@@ -178,8 +182,9 @@ consteval_eval(Consteval *consteval, const ast_t *const_ast)
 
 	if (consteval->stack_size < 1) {
 		report_error("%s error: stack underflow, constevaluator needs "
-								 "the last value on the stack to set it to constant's name",
-								 loc_to_str(&locid(ast.loc_id)));
+								 "the last value on the stack to set it to %s's name",
+								 loc_to_str(&locid(ast.loc_id)),
+								 is_var ? "variable" : "constant");
 	}
 
 	return consteval->stack[consteval->stack_size - 1];

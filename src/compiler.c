@@ -273,6 +273,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 	switch (ast->ast_kind) {
 	// These are handled in different place
 	case AST_CONST:
+	case AST_VAR:
 	case AST_FUNC:
 	case AST_PROC: {} break;
 
@@ -305,6 +306,30 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 		}
 
 		wprintln("._edon_%zu:", curr_label);
+	} break;
+
+	case AST_WRITE: {
+		value_kind_t value_kind = check_stack_for_last(ctx, "write", ast);
+		const char *str = ast->write_stmt.token->str + 1;
+		const i32 var_idx = shgeti(ctx->var_map, str);
+		if (var_idx == -1) {
+			report_error("%s error: undefined symbol: `%s`",
+									 loc_to_str(&locid(ast->loc_id)),
+									 str);
+		}
+
+		const consteval_value_t value = ctx->var_map[var_idx].value;
+
+		if (value_kind != value.kind) {
+			report_error("%s error: write a value of type `%s` into the variable of type `%s`",
+									 loc_to_str(&locid(ast->loc_id)),
+									 value_kind_to_str_pretty(value_kind),
+									 value_kind_to_str_pretty(value.kind));
+		}
+
+		wtln("pop rax");
+		wtprintln("mov [%s], rax", str);
+		stack_pop(ctx);
 	} break;
 
 	case AST_SYSCALL: {
@@ -402,10 +427,14 @@ compile_loop:
 	case AST_LITERAL: {
 		const i32 value_idx = shgeti(values_map, ast->literal.str);
 		const i32 const_idx = shgeti(ctx->const_map, ast->literal.str);
+		const i32 var_idx   = shgeti(ctx->var_map, ast->literal.str);
 		if (const_idx != -1) {
 			const consteval_value_t value = ctx->const_map[const_idx].value;
 			wtprintln("push 0x%lX", value.value);
 			stack_add_type(ctx, value.kind);
+		} else if (var_idx != -1) {
+			wtprintln("push [%s]", ast->literal.str);
+			stack_add_type(ctx, ctx->const_map[const_idx].value.kind);
 		} else if (value_idx != -1) {
 			const value_t value = values_map[value_idx].value;
 			if (value.ast_kind == AST_PROC) {
@@ -455,6 +484,7 @@ compile_loop:
 
 	case AST_CALL: {
 		const i32 value_idx = shgeti(values_map, ast->call.str);
+		const i32 var_idx = shgeti(ctx->var_map, ast->call.str);
 		if (value_idx != -1) {
 			const size_t stack_size = get_stack_size(ctx);
 
@@ -497,6 +527,10 @@ compile_loop:
 			}
 
 			shput(values_map, ast->call.str, value_);
+		} else if (var_idx != -1) {
+			wtprintln("mov rax, [%s]", ctx->var_map[var_idx].key);
+			wtln("push rax");
+			stack_add_type(ctx, ctx->var_map[var_idx].value.kind);
 		} else {
 			if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
 				const arg_t *arg = check_for_arg(ctx, ast->literal.str);
@@ -572,6 +606,7 @@ compile_loop:
 		check_for_two_integers_on_the_stack(ctx, "/", ast);
 		wtln("xor edx, edx");
 		print_binop("div rbx");
+		stack_pop(ctx);
 	} break;
 
 	case AST_MOD: {
@@ -581,12 +616,14 @@ compile_loop:
 		wtln("mov rax, qword [rsp]");
 		wtln("div rbx");
 		wtln("mov [rsp], rdx");
+		stack_pop(ctx);
 	} break;
 
 	case AST_MUL: {
 		check_for_two_integers_on_the_stack(ctx, "*", ast);
 		wtln("xor edx, edx");
 		print_binop("mul rbx");
+		stack_pop(ctx);
 	} break;
 
 	case AST_EQUAL: {
@@ -824,7 +861,7 @@ print_data_section(void)
 }
 
 Compiler
-new_compiler(ast_id_t ast_cur, const_map_t *const_map)
+new_compiler(ast_id_t ast_cur, const_map_t *const_map, var_map_t *var_map)
 {
 	return (Compiler) {
 		.ast_cur = ast_cur,
@@ -833,6 +870,7 @@ new_compiler(ast_id_t ast_cur, const_map_t *const_map)
 			.stack_size = 0,
 			.called_funcptr = false
 		},
+		.var_map = var_map,
 		.const_map = const_map
 	};
 }
@@ -1007,8 +1045,11 @@ compiler_compile(Compiler *ctx)
 
 	print_data_section();
 
-	string_literal_counter = 0;
+	for (ptrdiff_t i = 0; i < shlen(ctx->var_map); ++i) {
+		wprintln("%s dq %lX", ctx->var_map[i].key, ctx->var_map[i].value.value);
+	}
 
+	string_literal_counter = 0;
 	FOREACH(const char *, str, strs) {
 		scratch_buffer_clear();
 		scratch_buffer_genstr();

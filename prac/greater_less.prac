@@ -1,8 +1,8 @@
-10 569 > if
-  420 .
-else
-  69 .
-end
+# 10 569 > if
+#   420 .
+# else
+#   69 .
+# end
 
 88 360 < if
   365 .
@@ -10,4 +10,16 @@ else
   777 .
 end
 
-func main int do 0 end
+const A 10 end
+
+func main int do
+  A 20 > if
+    2 .
+  else A 5 > if
+    3 .
+  else A 10 > if
+    4 .
+  end end end
+
+  0
+end

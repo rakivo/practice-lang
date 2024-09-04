@@ -19,6 +19,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_DUP]				= "dup",
 	[TOKEN_DO]				= "do",
 	[TOKEN_PROC]			= "proc",
+	[TOKEN_VAR]				= "var",
 	[TOKEN_SYSCALL]		= "syscall",
 	[TOKEN_SYSCALL1]	= "syscall1",
 	[TOKEN_SYSCALL2]	= "syscall2",
@@ -33,6 +34,7 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_WRITE:						return "TOKEN_WRITE";						break;
 	case TOKEN_SYSCALL:					return "TOKEN_SYSCALL";					break;
 	case TOKEN_SYSCALL1:				return "TOKEN_SYSCALL1";				break;
 	case TOKEN_SYSCALL2:				return "TOKEN_SYSCALL2";				break;
@@ -44,6 +46,7 @@ token_kind_to_str(const token_kind_t token_kind)
 	case TOKEN_CONST:						return "TOKEN_CONST";						break;
 	case TOKEN_PROC:						return "TOKEN_PROC";						break;
 	case TOKEN_FUNC:						return "TOKEN_FUNC";						break;
+	case TOKEN_VAR:							return "TOKEN_VAR";							break;
 	case TOKEN_DUP:							return "TOKEN_DUP";							break;
 	case TOKEN_BOR:							return "TOKEN_BOR";							break;
 	case TOKEN_DROP:						return "TOKEN_DROP";						break;
@@ -72,6 +75,7 @@ token_kind_to_str_pretty(const token_kind_t token_kind)
 {
 	switch (token_kind) {
 	case TOKEN_CONST:						return "const";						break;
+	case TOKEN_VAR:							return "var";							break;
 	case TOKEN_SYSCALL:					return "syscall";					break;
 	case TOKEN_SYSCALL1:				return "syscall1";				break;
 	case TOKEN_SYSCALL2:				return "syscall2";				break;
@@ -90,6 +94,7 @@ token_kind_to_str_pretty(const token_kind_t token_kind)
 	case TOKEN_PLUS:						return "+";								break;
 	case TOKEN_MOD:							return "%";								break;
 	case TOKEN_BOR:							return "|";								break;
+	case TOKEN_WRITE:						return "!";								break;
 	case TOKEN_EQUAL:						return "=";								break;
 	case TOKEN_MINUS:						return "-";								break;
 	case TOKEN_DIV:							return "/";								break;
@@ -202,6 +207,7 @@ type_token(const char *str, const loc_t *loc)
 	case UPPER_CHAR_CASE: return TOKEN_LITERAL; break;
 
 	case '.': return TOKEN_DOT;							break;
+	case '!': return TOKEN_WRITE;						break;
 	case '>': return TOKEN_GREATER;					break;
 	case '<': return TOKEN_LESS;						break;
 	case '+': return TOKEN_PLUS;						break;

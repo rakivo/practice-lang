@@ -62,21 +62,26 @@ ast_t
 ast_token(Parser *parser, const token_t *token, bool rec)
 {
 	switch (token->kind) {
+	case TOKEN_VAR:
 	case TOKEN_CONST: {
 		// Skip `const` keyword
 		token_idx++;
 
 		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_END) {
-			report_error("%s error: const without a name", loc_to_str(&locid(token->loc_id)));
+			report_error("%s error: %s without a name",
+									 loc_to_str(&locid(token->loc_id)),
+									 token->kind == TOKEN_VAR ? "var" : "const");
 		}
 
 		if (parser->ts[token_idx].kind != TOKEN_LITERAL) {
-			report_error("%s error: expected name of the constant to be non-keyword `literal`, but got: `%s`",
+			report_error("%s error: expected name of the %s to be non-keyword `literal`, but got: `%s`",
 									 loc_to_str(&locid(parser->ts[token_idx].loc_id)),
-									 token_kind_to_str_pretty(parser->ts[token_idx].kind));
+									 token_kind_to_str_pretty(parser->ts[token_idx].kind),
+									 token->kind == TOKEN_VAR ? "variable" : "constant");
 		}
 
-		ast_t ast = make_ast(0, token->loc_id, ++next, AST_CONST,
+		ast_t ast = make_ast(0, token->loc_id, ++next,
+												 token->kind == TOKEN_VAR ? AST_VAR : AST_CONST,
 			.const_stmt = {
 				.name = &parser->ts[token_idx++],
 				.body = -1,
@@ -92,7 +97,11 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				done = true;
 				break;
 			} else if (token_count == 0) {
-				ast.const_stmt.body = next;
+				if (token->kind == TOKEN_VAR) {
+					ast.var_stmt.body = next;
+				} else {
+					ast.const_stmt.body = next;
+				}
 			}
 
 			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
@@ -495,8 +504,15 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		}
 	} break;
 
-	case TOKEN_DROP:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_DROP,			.drop_stmt = {0});
-	case TOKEN_DUP:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DUP,			.dup_stmt = {0});
+	case TOKEN_WRITE: {
+		if (token->str + 1 == NULL || *(token->str + 1) == '\0') {
+			report_error("%s error: invalid write statement", loc_to_str(&locid(token->loc_id)));
+		}
+		return (ast_t) make_ast(0, token->loc_id, ++next, AST_WRITE, .write_stmt = {token});
+	} break;
+
+	case TOKEN_DROP:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_DROP,			.drop_stmt		= {0});
+	case TOKEN_DUP:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DUP,			.dup_stmt			= {0});
 	case TOKEN_EQUAL:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_EQUAL,		.equal_stmt		= {0});
 	case TOKEN_GREATER:		return (ast_t) make_ast(0, token->loc_id, ++next, AST_GREATER,	.greater_stmt = {0});
 	case TOKEN_LESS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_LESS,			.less_stmt		= {0});
