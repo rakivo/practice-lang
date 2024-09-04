@@ -53,7 +53,6 @@ parser_parse(Parser *parser)
 	}
 }
 
-static bool is_else = false;
 static bool cond_is_not_empty = false;
 
 static size_t if_count = 0;
@@ -383,7 +382,6 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		if (!rec) {
 			if_count = 0;
 			else_count = 0;
-			is_else = false;
 		}
 
 		if_count++;
@@ -398,8 +396,9 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			}
 		);
 
-		size_t token_count = 0;
 		bool done = false;
+		bool is_else = false;
+		size_t token_count = 0;
 		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx];
 			if (token_.kind == TOKEN_END) {
