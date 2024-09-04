@@ -6,7 +6,7 @@ func main int do
   x! while x! 1 > do
     # if x % factor == 0
     x! factor! % 0 = if
-      drop factor! !largest # largest = factor
+      factor! !largest # largest = factor
       x! factor! / !x # x /= factor
     else
       factor! 1 + !factor # factor += 1
