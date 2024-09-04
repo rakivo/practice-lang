@@ -2,10 +2,9 @@ var a     1 end
 var b     2 end
 var t     0 end
 var sum   0 end
-var count 0 end
 
-func main int do
-  count! while dup 32 < do
+proc solve do
+  0 while dup 32 < do
     a! dup 2 % 0 = if
       dup sum! + !sum
     end
@@ -14,8 +13,8 @@ func main int do
     t! !b
     1 +
   end
+end
 
-  sum! .
-
-  0
+func main int do
+  solve! sum! . 0
 end

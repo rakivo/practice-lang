@@ -16,5 +16,6 @@ do
 end
 
 func main int do
+  1 2 foo!
   0
 end

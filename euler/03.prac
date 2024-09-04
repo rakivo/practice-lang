@@ -1,0 +1,18 @@
+var factor 2       end
+var largest 0      end
+var x 600851475143 end
+
+func main int do
+  x! while x! 1 > do
+    # if x % factor == 0
+    x! factor! % 0 = if
+      drop factor! !largest # largest = factor
+      x! factor! / !x # x /= factor
+    else
+      factor! 1 + !factor # factor += 1
+    end
+  end
+
+  largest! .
+  0
+end

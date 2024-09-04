@@ -22,6 +22,5 @@ proc solve do
 end
 
 func main int do
-  solve!
-  sum! . 0
+  solve! sum! . 0
 end

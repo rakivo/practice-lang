@@ -5,6 +5,12 @@ do
   a b +
 end
 
+proc hello
+  str msg
+do
+  msg dup .
+end
+
 func square int
   int x
 do
@@ -13,6 +19,7 @@ end
 
 func main int
 do
+  "helo" hello!
   4 square! .
   0
 end

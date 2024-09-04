@@ -284,6 +284,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 																	 ast);
 
 		wtln("pop rax");
+		stack_pop(ctx);
 
 		// If statement is empty
 		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
@@ -292,7 +293,6 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", curr_label);
-		stack_pop(ctx);
 
 		ast_t if_ast = astid(ast->if_stmt.then_body);
 		if (ast->if_stmt.then_body >= 0) {
@@ -383,9 +383,8 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 																	 ast);
 
 		wtln("pop rax");
-		wtln("test rax, rax");
-
 		stack_pop(ctx);
+		wtln("test rax, rax");
 
 		wtprintln("jz ._wdon_%zu", curr_label);
 
@@ -465,9 +464,9 @@ compile_loop:
 					// Compute the index of the value from the end of the stack
 					size_t stack_idx = 0;
 					if (ctx->proc_ctx.stmt != NULL) {
-						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
+						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size;
 					} else {
-						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
+						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size;
 					}
 
 					wtprintln("mov rax, [rsp + %zu]", stack_idx * WORD_SIZE);
@@ -664,6 +663,7 @@ compile_loop:
 	} break;
 
 	case AST_DROP: {
+		printf("%zu\n", get_stack_size(ctx));
 		check_stack_for_last(ctx, "drop", ast);
 		wtln("pop rax");
 		stack_pop(ctx);
@@ -902,9 +902,6 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 
 	wprintln("__%s__:", ast->proc_stmt.name->str);
 
-	wtln("push rbp");
-	wtln("mov rbp, rsp");
-
 	ctx->proc_ctx.stmt = &ast->proc_stmt;
 
 	ast_t proc_ast = astid(ast->proc_stmt.body);
@@ -912,17 +909,15 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 		compile_block(ctx, proc_ast);
 	}
 
-	wtln("mov rsp, rbp");
-	wtln("pop rbp");
+	const size_t stack_size = get_stack_size(ctx);
 
-	// Pop return address to rax
-	wtln("pop rax");
+	wtprintln("mov rax, [rsp + %zu]", (stack_size) * WORD_SIZE);
 
-	// Clean the stack
+	// Clean the stack and retrieve return address
 	wtprintln("add rsp, %zu",
-						(size_t) vec_size(ctx->proc_ctx.stmt->args) * WORD_SIZE);
+						(get_stack_size(ctx) + 1 +
+						(size_t) vec_size(ctx->proc_ctx.stmt->args)) * WORD_SIZE);
 
-	// Get the return address from rax
 	wtln("push rax");
 	wtln("ret");
 
@@ -931,8 +926,7 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 	ctx->proc_ctx.called_funcptr = false;
 }
 
-static void
-compile_func(Compiler *ctx, const ast_t *ast)
+static void compile_func(Compiler *ctx, const ast_t *ast)
 {
 #ifdef DEBUG
 	FOREACH(arg_t, arg, ast->func_stmt.args) {
@@ -942,8 +936,6 @@ compile_func(Compiler *ctx, const ast_t *ast)
 
 	wprintln("__%s__:", ast->func_stmt.name->str);
 
-	wtln("enter 0, 0");
-
 	ctx->func_ctx.stmt = &ast->func_stmt;
 
 	ast_id_t last_ast_in_body = ast->ast_id;
@@ -951,14 +943,6 @@ compile_func(Compiler *ctx, const ast_t *ast)
 	if (ast->func_stmt.body >= 0) {
 		last_ast_in_body = compile_block(ctx, func_ast);
 	}
-
-	// Save the last value from stack to rdi
-	wtln("pop rdi");
-
-	wtln("leave");
-
-	// Pop return address to rax
-	wtln("pop rax");
 
 	if (ctx->func_ctx.stack_size < 1) {
 		report_error("%s error: expected to have element on the stack "
@@ -971,17 +955,23 @@ compile_func(Compiler *ctx, const ast_t *ast)
 								 value_kind_to_str_pretty(*get_type_from_end(ctx, 0)));
 	}
 
-	wtprintln("add rsp, %zu",
-						(size_t) vec_size(ctx->func_ctx.stmt->args) * 8);
-
-	// Push return value from rdi before return address
-	wtln("push rdi");
+	// Save the last value from stack to rdi
+	wtln("pop rdi");
+	stack_pop(ctx);
 
 	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name->str)) {
 		wtln("mov [ret_code], rdi");
 	}
 
-	// Get the return address from rax
+	const size_t stack_size = get_stack_size(ctx);
+	const size_t args_count = (size_t) vec_size(ctx->func_ctx.stmt->args);
+
+	wtprintln("mov rax, [rsp + %zu]", (stack_size) * WORD_SIZE);
+
+	wtprintln("add rsp, %zu", (stack_size + args_count + 1) * WORD_SIZE);
+
+	// Push return value from rdi before return address
+	wtln("push rdi");
 	wtln("push rax");
 
 	wtln("ret");
