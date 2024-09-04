@@ -64,7 +64,8 @@ print_ast(const ast_t *ast)
 
 	switch (ast->ast_kind) {
 	case AST_WRITE: {
-		token_to_str(ast->write_stmt.token);
+		printf("%s\n", ast_kind_to_str(ast->ast_kind));
+		printf("token: %s\n", token_to_str(ast->write_stmt.token));
 	} break;
 
 	case AST_VAR: {

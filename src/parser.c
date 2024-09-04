@@ -208,8 +208,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			ast.next = next;
 		}
 
-		// indicate the end of the body
-		last_ast.next = -1;
+		if (token_count > 0) {
+			// indicate the end of the body
+			last_ast.next = -1;
+		}
 
 		return ast;
 	} break;
@@ -366,6 +368,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			}
 
 			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			token_idx++;
 
 			if (parser->ts[token_idx].kind == TOKEN_END
 			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
@@ -374,7 +377,6 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			}
 
 			append_ast(ast);
-			token_idx++;
 			token_count++;
 		}
 
@@ -445,9 +447,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
 		}
 
-		if (parser->ts[token_idx].kind == TOKEN_END
-		&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
-		{
+		if (token_idx + 1 < parser->tc && parser->ts[token_idx + 1].kind == TOKEN_END) {
 			ast.next = -1;
 		} else if (last_ast.next > 0) {
 			ast.next = last_ast.next;

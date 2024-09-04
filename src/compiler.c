@@ -283,12 +283,13 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 																	 "the stack to be integer",
 																	 ast);
 
+		wtln("pop rax");
+
 		// If statement is empty
 		if (ast->if_stmt.then_body < 0 && ast->if_stmt.else_body < 0) return;
 
 		const size_t curr_label = label_counter++;
 
-		wtln("pop rax");
 		wtln("test rax, rax");
 		wtprintln("jz ._else_%zu", curr_label);
 		stack_pop(ctx);
@@ -1046,7 +1047,7 @@ compiler_compile(Compiler *ctx)
 	print_data_section();
 
 	for (ptrdiff_t i = 0; i < shlen(ctx->var_map); ++i) {
-		wprintln("%s dq %lX", ctx->var_map[i].key, ctx->var_map[i].value.value);
+		wprintln("%s dq 0x%lX", ctx->var_map[i].key, ctx->var_map[i].value.value);
 	}
 
 	string_literal_counter = 0;
@@ -1062,9 +1063,9 @@ compiler_compile(Compiler *ctx)
 			scratch_buffer.str[len - 3] = '"';
 			scratch_buffer.str[len - 2] = '\0';
 
-			wprintln("%s db %s, 10, 0", strdb, scratch_buffer_to_string());
+			wprintln("%s db %s, 0xA, 0x0", strdb, scratch_buffer_to_string());
 		} else {
-			wprintln("%s db %s, 0", strdb, str);
+			wprintln("%s db %s, 0x0", strdb, str);
 		}
 
 		scratch_buffer_genstrlen();
