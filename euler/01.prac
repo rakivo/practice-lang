@@ -1,0 +1,17 @@
+# This solution just prints all the numbers that need to be summed up, rather than summing them up itself, because the language currently lacks both variables and swap function.
+
+proc solve do
+  0 while dup 999 < do
+    1 +
+
+    dup 3 % 0 = if
+      .
+    else dup 5 % 0 = if
+      .
+    end end
+  end
+end
+
+func main int do
+  solve! 0
+end
