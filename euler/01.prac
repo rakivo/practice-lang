@@ -1,5 +1,3 @@
-# This solution just prints all the numbers that need to be summed up, rather than summing them up itself, because the language currently lacks both variables and swap function.
-
 var sum 0 end
 var is_mod3 0 end
 var is_mod5 0 end
