@@ -2,4 +2,5 @@ build
 out
 *.o
 *.asm
+nob
 prac/big.prac
