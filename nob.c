@@ -2,13 +2,17 @@
 #include "src/nob.h"
 
 #include <string.h>
+#include <limits.h>
 
-#define CC "clang"
+#ifndef CC
+	#define CC "clang"
+#endif
+
 #define C_EXT "c"
 #define SRC_DIR "src"
 #define SRC_DIR_LEN 3
 #define BUILD_DIR "build"
-#define BIN_FILE "pracc"
+#define BIN_FILE (BUILD_DIR"/pracc")
 #define ROOT_FILE_NOEXT "main.c"
 #define ROOT_FILE (SRC_DIR"/main.c")
 #define COMMON_H (SRC_DIR"/common.h")
@@ -85,17 +89,30 @@ int main(int argc, char *argv[])
 
 	Nob_Cmd cmd = {0};
 	for (size_t i = 0; i < obj_files.count; ++i) {
-		if (nob_needs_rebuild(obj_files.items[i], (const char **) src_files_prefixed.items, src_files.count)) {
+		if (nob_needs_rebuild(obj_files.items[i], (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
 			cmd.count = 0;
 			nob_cmd_append(&cmd, CC, CFLAGS, WFLAGS, "-c", c_files.items[i], "-o", obj_files.items[i]);
 			nob_cmd_run_sync(cmd);
 		}
 	}
 
+	nob_da_append(&src_files_prefixed, ROOT_FILE);
+	if (nob_needs_rebuild(BIN_FILE, (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
+		cmd.count = 0;
+		nob_cmd_append(&cmd, CC, "-o", BIN_FILE, CFLAGS, WFLAGS);
+		for (size_t i = 0; i < obj_files.count; ++i) {
+			nob_cmd_append(&cmd, obj_files.items[i]);
+		}
+		nob_cmd_append(&cmd, ROOT_FILE);
+		nob_cmd_run_sync(cmd);
+	}
+
+	for (size_t i = 0; i < src_files_prefixed.count - 1; ++i) {
+		free(src_files_prefixed.items[i]);
+	}
 	nob_cmd_free(cmd);
 	nob_da_free_items(c_files);
 	nob_da_free_items(obj_files);
-	nob_da_free_items(src_files_prefixed);
 	nob_da_free(c_files);
 	nob_da_free(obj_files);
 	nob_da_free(src_files);
