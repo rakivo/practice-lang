@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "nob.h"
 #include "ast.h"
 #include "vmem.h"
 #include "file.h"
@@ -106,7 +107,16 @@ main(int argc, const char *argv[])
 	Compiler compiler = new_compiler(main_function, const_map, var_map);
 	compiler_compile(&compiler);
 
+	Nob_Cmd cmd = {0};
+	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS, ASM_OUTPUT_FLAGS);
+	nob_cmd_run_sync(cmd, false);
+
+	cmd.count = 0;
+	nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
+	nob_cmd_run_sync(cmd, false);
+
 ret:
+	nob_cmd_free(cmd);
 	main_deinit();
 	return 0;
 }

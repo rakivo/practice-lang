@@ -3,7 +3,6 @@
 #include "common.h"
 #include "compiler.h"
 
-#include "nob.h"
 #include "stb_ds.h"
 
 #include <stdio.h>
@@ -23,47 +22,6 @@
 #define wtln(...) wln(TAB __VA_ARGS__)
 #define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
 #define wtprintln(fmt, ...) wprintln(TAB fmt, __VA_ARGS__)
-
-#ifndef DEBUG
-	#define FASM
-#endif
-
-#define WORD_SIZE 8
-
-#define OBJECT_OUTPUT "out.o"
-#define X86_64_OUTPUT "out.asm"
-#define EXECUTABLE_OUTPUT "out"
-
-#define ASM_OUTPUT_FLAGS "-o", OBJECT_OUTPUT
-#define LD_OUTPUT_FLAGS "-o", EXECUTABLE_OUTPUT
-
-#define PATH_TO_LD_EXECUTABLE "/usr/bin/ld"
-
-#ifdef FASM
-	#define DEFINE "define"
-	#define GLOBAL "public"
-	#define ASM_FLAGS
-	#define COMPTIME_EQU "="
-	#define RESERVE_QUAD "rq"
-	#define FORMAT_64BIT "format ELF64"
-	#define RESERVE_QUAD_WORD "rq"
-	#define SECTION_BSS_WRITEABLE "section '.bss' writeable"
-	#define PATH_TO_ASM_EXECUTABLE "/usr/bin/fasm"
-	#define SECTION_DATA_WRITEABLE "section '.data' writeable"
-	#define SECTION_TEXT_EXECUTABLE "section '.text' executable"
-#else
-	#define DEFINE "%%define"
-	#define GLOBAL "global"
-	#define COMPTIME_EQU "equ"
-	#define RESERVE_QUAD "resq"
-	#define FORMAT_64BIT "BITS 64"
-	#define RESERVE_QUAD_WORD "resq"
-	#define SECTION_BSS_WRITEABLE "section .bss"
-	#define ASM_FLAGS "-f", "elf64", "-g", "-F", "dwarf"
-	#define PATH_TO_ASM_EXECUTABLE "/usr/bin/nasm"
-	#define SECTION_DATA_WRITEABLE "section .data"
-	#define SECTION_TEXT_EXECUTABLE "section .text"
-#endif // FASM
 
 static FILE *stream = NULL;
 
@@ -1100,16 +1058,6 @@ compiler_compile(Compiler *ctx)
 	}
 
 	compiler_deinit();
-
-	Nob_Cmd cmd = {0};
-	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS, ASM_OUTPUT_FLAGS);
-	nob_cmd_run_sync(cmd, false);
-
-	cmd.count = 0;
-	nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
-	nob_cmd_run_sync(cmd, false);
-
-	nob_cmd_free(cmd);
 }
 
 /* TODO:

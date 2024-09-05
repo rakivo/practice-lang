@@ -2,6 +2,48 @@
 #define COMPILER_H_
 
 #include "ast.h"
+#include "common.h"
+
+#ifndef DEBUG
+	#define FASM
+#endif
+
+#define WORD_SIZE 8
+
+#define OBJECT_OUTPUT "out.o"
+#define X86_64_OUTPUT "out.asm"
+#define EXECUTABLE_OUTPUT "out"
+
+#define ASM_OUTPUT_FLAGS "-o", OBJECT_OUTPUT
+#define LD_OUTPUT_FLAGS "-o", EXECUTABLE_OUTPUT
+
+#define PATH_TO_LD_EXECUTABLE "/usr/bin/ld"
+
+#ifdef FASM
+	#define DEFINE "define"
+	#define GLOBAL "public"
+	#define ASM_FLAGS
+	#define COMPTIME_EQU "="
+	#define RESERVE_QUAD "rq"
+	#define FORMAT_64BIT "format ELF64"
+	#define RESERVE_QUAD_WORD "rq"
+	#define SECTION_BSS_WRITEABLE "section '.bss' writeable"
+	#define PATH_TO_ASM_EXECUTABLE "/usr/bin/fasm"
+	#define SECTION_DATA_WRITEABLE "section '.data' writeable"
+	#define SECTION_TEXT_EXECUTABLE "section '.text' executable"
+#else
+	#define DEFINE "%%define"
+	#define GLOBAL "global"
+	#define COMPTIME_EQU "equ"
+	#define RESERVE_QUAD "resq"
+	#define FORMAT_64BIT "BITS 64"
+	#define RESERVE_QUAD_WORD "resq"
+	#define SECTION_BSS_WRITEABLE "section .bss"
+	#define ASM_FLAGS "-f", "elf64", "-g", "-F", "dwarf"
+	#define PATH_TO_ASM_EXECUTABLE "/usr/bin/nasm"
+	#define SECTION_DATA_WRITEABLE "section .data"
+	#define SECTION_TEXT_EXECUTABLE "section .text"
+#endif // FASM
 
 #define MAX_STACK_TYPES_CAP 1024
 #define PROC_CTX_MAX_STACK_TYPES_CAP 512
