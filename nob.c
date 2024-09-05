@@ -23,7 +23,8 @@
 	for (size_t i = 0; i < what.count; ++i) free(what.items[i]); \
 } while (0)
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	NOB_GO_REBUILD_URSELF(argc, argv);
 	const char *program = nob_shift_args(&argc, &argv);
@@ -31,13 +32,15 @@ int main(int argc, char *argv[])
 	Nob_File_Paths src_files_ = {0};
 	nob_read_entire_dir(SRC_DIR, &src_files_);
 
+	// Filter out `.`, `..` and `main.c`
 	Nob_File_Paths src_files = {0};
 	for (size_t i = 0; i < src_files_.count; ++i) {
 		if (*src_files_.items[i] != '.' && 0 != strcmp(src_files_.items[i], ROOT_FILE_NOEXT)) {
-				nob_da_append(&src_files, src_files_.items[i]);
+			nob_da_append(&src_files, src_files_.items[i]);
 		}
 	}
 
+	// Collect c_files and obj_files
 	Nob_File_Paths c_files = {0};
 	Nob_File_Paths obj_files = {0};
 	for (size_t i = 0; i < src_files.count; ++i) {
@@ -75,6 +78,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	// Prefix src_files with `src/`
 	Nob_File_Paths src_files_prefixed = {0};
 	for (size_t i = 0; i < src_files.count; ++i) {
 		Nob_String_Builder sb = {0};
@@ -85,8 +89,12 @@ int main(int argc, char *argv[])
 		nob_da_append(&src_files_prefixed, sb.items);
 	}
 
-	if (nob_mkdir_if_not_exists(BUILD_DIR));
+	// Avoid `[INFO] directory `build` already exists` message.
+	if (!nob_file_exists(BUILD_DIR)) {
+		nob_mkdir_if_not_exists(BUILD_DIR);
+	}
 
+	// Build all the object files
 	Nob_Cmd cmd = {0};
 	for (size_t i = 0; i < obj_files.count; ++i) {
 		if (nob_needs_rebuild(obj_files.items[i], (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
@@ -96,7 +104,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	// Append `main.c`
 	nob_da_append(&src_files_prefixed, ROOT_FILE);
+
+	// Build `build/pracc` executable
 	if (nob_needs_rebuild(BIN_FILE, (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
 		cmd.count = 0;
 		nob_cmd_append(&cmd, CC, "-o", BIN_FILE, CFLAGS, WFLAGS);
@@ -107,10 +118,8 @@ int main(int argc, char *argv[])
 		nob_cmd_run_sync(cmd);
 	}
 
-	for (size_t i = 0; i < src_files_prefixed.count - 1; ++i) {
-		free(src_files_prefixed.items[i]);
-	}
 	nob_cmd_free(cmd);
+	for (size_t i = 0; i < src_files_prefixed.count - 1; ++i) free(src_files_prefixed.items[i]);
 	nob_da_free_items(c_files);
 	nob_da_free_items(obj_files);
 	nob_da_free(c_files);
