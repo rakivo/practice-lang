@@ -33,6 +33,7 @@
 	#define COMPTIME_EQU "="
 	#define RESERVE_QUAD "rq"
 	#define FORMAT_64BIT "format ELF64"
+	#define RESERVE_QUAD_WORD "rq"
 	#define SECTION_BSS_WRITEABLE "section '.bss' writeable"
 	#define SECTION_DATA_WRITEABLE "section '.data' writeable"
 	#define SECTION_TEXT_EXECUTABLE "section '.text' executable"
@@ -42,6 +43,7 @@
 	#define COMPTIME_EQU "equ"
 	#define RESERVE_QUAD "resq"
 	#define FORMAT_64BIT "BITS 64"
+	#define RESERVE_QUAD_WORD "resq"
 	#define SECTION_BSS_WRITEABLE "section .bss"
 	#define SECTION_DATA_WRITEABLE "section .data"
 	#define SECTION_TEXT_EXECUTABLE "section .text"
@@ -174,6 +176,15 @@ get_stack_size(const Compiler *ctx)
 	else return stack_size;
 }
 
+void
+stack_dump(const Compiler *ctx)
+{
+	const size_t size = get_stack_size(ctx);
+	for (int i = size - 1, j = 0; i > 0; --i, ++j) {
+		printf("  %d: %s\n", j, value_kind_to_str_pretty(*stack_at(ctx, i)));
+	}
+}
+
 INLINE const value_kind_t *
 get_type_from_end(const Compiler *ctx, size_t idx)
 {
@@ -191,7 +202,7 @@ check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const a
 
 	if (second_type == NULL || first_type == NULL) {
 		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
-	} else if (*first_type != VALUE_KIND_INTEGER
+	} else if (*first_type  != VALUE_KIND_INTEGER
 				 ||  *second_type != VALUE_KIND_INTEGER)
 	{
 		report_error("%s error: expected two integers on the stack, but got: %s and %s",
@@ -267,6 +278,11 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 #ifdef DEBUG
 	if (ast->ast_kind != AST_PROC && ast->ast_kind != AST_FUNC) {
 		wprintln("; -- %s --", ast_kind_to_str(ast->ast_kind));
+
+#ifdef PRINT_STACK
+		printf("%s:\n", ast_kind_to_str(ast->ast_kind));
+		stack_dump(ctx);
+#endif
 	}
 #endif
 
@@ -635,7 +651,7 @@ compile_loop:
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
 		stack_pop(ctx);
-		stack_types[stack_size - 1] = VALUE_KIND_INTEGER;
+		*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_LESS: {
@@ -647,7 +663,7 @@ compile_loop:
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
 		stack_pop(ctx);
-		stack_types[stack_size - 1] = VALUE_KIND_INTEGER;
+		*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_GREATER: {
@@ -659,11 +675,10 @@ compile_loop:
 		wtln("movzx rax, al");
 		wtln("mov [rsp], rax");
 		stack_pop(ctx);
-		stack_types[stack_size - 1] = VALUE_KIND_INTEGER;
+		*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
 	case AST_DROP: {
-		printf("%zu\n", get_stack_size(ctx));
 		check_stack_for_last(ctx, "drop", ast);
 		wtln("pop rax");
 		stack_pop(ctx);
@@ -712,6 +727,7 @@ print_defines(void)
 {
 	wln(DEFINE " SYS_WRITE  1");
 	wln(DEFINE " SYS_STDOUT 1");
+	wln(DEFINE " WORD_SIZE  8");
 	wln(DEFINE " SYS_EXIT   60");
 }
 
@@ -857,8 +873,11 @@ print_exit(void)
 INLINE void
 print_data_section(void)
 {
+	wln(SECTION_BSS_WRITEABLE);
+	wln("rsp_stack: " RESERVE_QUAD_WORD " 1024");
 	wln(SECTION_DATA_WRITEABLE);
 	wln("ret_code dq 0x0");
+	wln("rsp_stack_ptr: dq rsp_stack");
 }
 
 Compiler
@@ -892,6 +911,22 @@ compiler_emergency_clean(void)
 }
 
 static void
+rsp_stack_mov_rsp(void)
+{
+	wtln("mov rax, qword [rsp_stack_ptr]");
+	wtln("mov qword [rax], rsp");
+	wtln("add qword [rsp_stack_ptr], WORD_SIZE");
+}
+
+static void
+rsp_stack_mov_to_rsp(void)
+{
+	wtln("sub qword [rsp_stack_ptr], WORD_SIZE");
+	wtln("mov rax, qword [rsp_stack_ptr]");
+	wtln("mov rsp, qword [rax]");
+}
+
+static void
 compile_proc(Compiler *ctx, const ast_t *ast)
 {
 #ifdef DEBUG
@@ -901,6 +936,7 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 #endif
 
 	wprintln("__%s__:", ast->proc_stmt.name->str);
+	rsp_stack_mov_rsp();
 
 	ctx->proc_ctx.stmt = &ast->proc_stmt;
 
@@ -909,16 +945,7 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 		compile_block(ctx, proc_ast);
 	}
 
-	const size_t stack_size = get_stack_size(ctx);
-
-	wtprintln("mov rax, [rsp + %zu]", (stack_size) * WORD_SIZE);
-
-	// Clean the stack and retrieve return address
-	wtprintln("add rsp, %zu",
-						(get_stack_size(ctx) + 1 +
-						(size_t) vec_size(ctx->proc_ctx.stmt->args)) * WORD_SIZE);
-
-	wtln("push rax");
+	rsp_stack_mov_to_rsp();
 	wtln("ret");
 
 	ctx->proc_ctx.stmt = NULL;
@@ -935,6 +962,7 @@ static void compile_func(Compiler *ctx, const ast_t *ast)
 #endif
 
 	wprintln("__%s__:", ast->func_stmt.name->str);
+	rsp_stack_mov_rsp();
 
 	ctx->func_ctx.stmt = &ast->func_stmt;
 
@@ -955,22 +983,14 @@ static void compile_func(Compiler *ctx, const ast_t *ast)
 								 value_kind_to_str_pretty(*get_type_from_end(ctx, 0)));
 	}
 
-	// Save the last value from stack to rdi
 	wtln("pop rdi");
-	stack_pop(ctx);
-
 	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name->str)) {
 		wtln("mov [ret_code], rdi");
 	}
 
-	const size_t stack_size = get_stack_size(ctx);
-	const size_t args_count = (size_t) vec_size(ctx->func_ctx.stmt->args);
+	rsp_stack_mov_to_rsp();
+	wtln("pop rax");
 
-	wtprintln("mov rax, [rsp + %zu]", (stack_size) * WORD_SIZE);
-
-	wtprintln("add rsp, %zu", (stack_size + args_count + 1) * WORD_SIZE);
-
-	// Push return value from rdi before return address
 	wtln("push rdi");
 	wtln("push rax");
 

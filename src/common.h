@@ -7,6 +7,7 @@
 
 // #define PRINT_TOKENS
 // #define PRINT_ASTS
+// #define PRINT_STACK
 // #define MEM_PRINT 1
 #define DEBUG 1
 
