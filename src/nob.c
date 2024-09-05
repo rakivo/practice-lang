@@ -1,4 +1,4 @@
-// A small subset of <https://github.com/tsoding/musializer/blob/master/nob.h>, just to run a sync command.
+// A small subset of <https://github.com/tsoding/musializer/blob/master/nob.h>, just to run commands and rename files.
 // This C file is just a stitched parts of the `nob.h`, but `nob_cmd_run_async()` and `nob_cmd_run_sync()` modified to accept `bool echo` argument.
 
 #include "nob.h"
@@ -115,7 +115,7 @@ void nob_log(Nob_Log_Level level, const char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
-bool nob_proc_wait(Nob_Proc proc)
+bool nob_proc_wait(Nob_Proc proc, bool echo)
 {
 	if (proc == NOB_INVALID_PROC) return false;
 
@@ -126,18 +126,18 @@ bool nob_proc_wait(Nob_Proc proc)
 	);
 
 	if (result == WAIT_FAILED) {
-		nob_log(NOB_ERROR, "could not wait on child process: %lu", GetLastError());
+		if (echo) nob_log(NOB_ERROR, "could not wait on child process: %lu", GetLastError());
 		return false;
 	}
 
 	DWORD exit_status;
 	if (!GetExitCodeProcess(proc, &exit_status)) {
-		nob_log(NOB_ERROR, "could not get process exit code: %lu", GetLastError());
+		if (echo) nob_log(NOB_ERROR, "could not get process exit code: %lu", GetLastError());
 		return false;
 	}
 
 	if (exit_status != 0) {
-		nob_log(NOB_ERROR, "command exited with exit code %lu", exit_status);
+		if (echo) nob_log(NOB_ERROR, "command exited with exit code %lu", exit_status);
 		return false;
 	}
 
@@ -148,14 +148,14 @@ bool nob_proc_wait(Nob_Proc proc)
 	for (;;) {
 		int wstatus = 0;
 		if (waitpid(proc, &wstatus, 0) < 0) {
-			nob_log(NOB_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
+			if (echo) nob_log(NOB_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
 			return false;
 		}
 
 		if (WIFEXITED(wstatus)) {
 			int exit_status = WEXITSTATUS(wstatus);
 			if (exit_status != 0) {
-				nob_log(NOB_ERROR, "command exited with exit code %d", exit_status);
+				if (echo) nob_log(NOB_ERROR, "command exited with exit code %d", exit_status);
 				return false;
 			}
 
@@ -171,5 +171,24 @@ bool nob_cmd_run_sync(Nob_Cmd cmd, bool echo)
 {
 	Nob_Proc p = nob_cmd_run_async(cmd, echo);
 	if (p == NOB_INVALID_PROC) return false;
-	return nob_proc_wait(p);
+	return nob_proc_wait(p, echo);
+}
+
+bool nob_rename(const char *old_path, const char *new_path, bool echo)
+{
+	if (echo) {
+		nob_log(NOB_INFO, "renaming %s -> %s", old_path, new_path);
+	}
+#ifdef _WIN32
+    if (!MoveFileEx(old_path, new_path, MOVEFILE_REPLACE_EXISTING)) {
+        if (echo) nob_log(NOB_ERROR, "could not rename %s to %s: %lu", old_path, new_path, GetLastError());
+        return false;
+    }
+#else
+    if (rename(old_path, new_path) < 0) {
+			if (echo) nob_log(NOB_ERROR, "could not rename %s to %s: %s", old_path, new_path, strerror(errno));
+        return false;
+    }
+#endif // _WIN32
+    return true;
 }

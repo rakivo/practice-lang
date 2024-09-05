@@ -178,7 +178,7 @@ typedef struct {
 bool nob_procs_wait(Nob_Procs procs);
 
 // Wait until the process has finished
-bool nob_proc_wait(Nob_Proc proc);
+bool nob_proc_wait(Nob_Proc proc, bool echo);
 
 // A command - the main workhorse of Nob. Nob is all about building commands an running them
 typedef struct {
@@ -217,7 +217,7 @@ size_t nob_temp_save(void);
 void nob_temp_rewind(size_t checkpoint);
 
 int is_path1_modified_after_path2(const char *path1, const char *path2);
-bool nob_rename(const char *old_path, const char *new_path);
+bool nob_rename(const char *old_path, const char *new_path, bool echo);
 int nob_needs_rebuild(const char *output_path, const char **input_paths, size_t input_paths_count);
 int nob_needs_rebuild1(const char *output_path, const char *input_path);
 int nob_file_exists(const char *file_path);
@@ -273,13 +273,13 @@ int nob_file_exists(const char *file_path);
             nob_sb_append_cstr(&sb, ".old");                                                 \
             nob_sb_append_null(&sb);                                                         \
                                                                                              \
-            if (!nob_rename(binary_path, sb.items)) exit(1);                                 \
+            if (!nob_rename(binary_path, sb.items), true) exit(1);						\
             Nob_Cmd rebuild = {0};                                                           \
             nob_cmd_append(&rebuild, NOB_REBUILD_URSELF(binary_path, source_path));          \
             bool rebuild_succeeded = nob_cmd_run_sync(rebuild, true);                        \
             nob_cmd_free(rebuild);                                                           \
             if (!rebuild_succeeded) {                                                        \
-                nob_rename(sb.items, binary_path);                                           \
+							nob_rename(sb.items, binary_path, true);												\
                 exit(1);                                                                     \
             }                                                                                \
             Nob_Cmd cmd = {0};                                                               \
@@ -553,65 +553,60 @@ bool nob_procs_wait(Nob_Procs procs)
 {
     bool success = true;
     for (size_t i = 0; i < procs.count; ++i) {
-        success = nob_proc_wait(procs.items[i]) && success;
+			success = nob_proc_wait(procs.items[i], true) && success;
     }
     return success;
 }
 
-bool nob_proc_wait(Nob_Proc proc)
+bool nob_proc_wait(Nob_Proc proc, bool echo)
 {
-    if (proc == NOB_INVALID_PROC) return false;
+	if (proc == NOB_INVALID_PROC) return false;
 
 #ifdef _WIN32
-    DWORD result = WaitForSingleObject(
-                       proc,    // HANDLE hHandle,
-                       INFINITE // DWORD  dwMilliseconds
-                   );
+	DWORD result = WaitForSingleObject(
+		proc,	// HANDLE hHandle,
+		INFINITE // DWORD  dwMilliseconds
+	);
 
-    if (result == WAIT_FAILED) {
-        nob_log(NOB_ERROR, "could not wait on child process: %lu", GetLastError());
-        return false;
-    }
+	if (result == WAIT_FAILED) {
+		if (echo) nob_log(NOB_ERROR, "could not wait on child process: %lu", GetLastError());
+		return false;
+	}
 
-    DWORD exit_status;
-    if (!GetExitCodeProcess(proc, &exit_status)) {
-        nob_log(NOB_ERROR, "could not get process exit code: %lu", GetLastError());
-        return false;
-    }
+	DWORD exit_status;
+	if (!GetExitCodeProcess(proc, &exit_status)) {
+		if (echo) nob_log(NOB_ERROR, "could not get process exit code: %lu", GetLastError());
+		return false;
+	}
 
-    if (exit_status != 0) {
-        nob_log(NOB_ERROR, "command exited with exit code %lu", exit_status);
-        return false;
-    }
+	if (exit_status != 0) {
+		if (echo) nob_log(NOB_ERROR, "command exited with exit code %lu", exit_status);
+		return false;
+	}
 
-    CloseHandle(proc);
+	CloseHandle(proc);
 
-    return true;
+	return true;
 #else
-    for (;;) {
-        int wstatus = 0;
-        if (waitpid(proc, &wstatus, 0) < 0) {
-            nob_log(NOB_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
-            return false;
-        }
+	for (;;) {
+		int wstatus = 0;
+		if (waitpid(proc, &wstatus, 0) < 0) {
+			if (echo) nob_log(NOB_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
+			return false;
+		}
 
-        if (WIFEXITED(wstatus)) {
-            int exit_status = WEXITSTATUS(wstatus);
-            if (exit_status != 0) {
-                nob_log(NOB_ERROR, "command exited with exit code %d", exit_status);
-                return false;
-            }
+		if (WIFEXITED(wstatus)) {
+			int exit_status = WEXITSTATUS(wstatus);
+			if (exit_status != 0) {
+				if (echo) nob_log(NOB_ERROR, "command exited with exit code %d", exit_status);
+				return false;
+			}
 
-            break;
-        }
+			break;
+		}
+	}
 
-        if (WIFSIGNALED(wstatus)) {
-            nob_log(NOB_ERROR, "command process was terminated by %s", strsignal(WTERMSIG(wstatus)));
-            return false;
-        }
-    }
-
-    return true;
+	return true;
 #endif
 }
 
@@ -619,7 +614,7 @@ bool nob_cmd_run_sync(Nob_Cmd cmd, bool echo)
 {
 	Nob_Proc p = nob_cmd_run_async(cmd, echo);
 	if (p == NOB_INVALID_PROC) return false;
-	return nob_proc_wait(p);
+	return nob_proc_wait(p, echo);
 }
 
 char *nob_shift_args(int *argc, char ***argv)
@@ -939,17 +934,19 @@ int nob_needs_rebuild1(const char *output_path, const char *input_path)
     return nob_needs_rebuild(output_path, &input_path, 1);
 }
 
-bool nob_rename(const char *old_path, const char *new_path)
+bool nob_rename(const char *old_path, const char *new_path, bool echo)
 {
-    nob_log(NOB_INFO, "renaming %s -> %s", old_path, new_path);
+	if (echo) {
+		nob_log(NOB_INFO, "renaming %s -> %s", old_path, new_path);
+	}
 #ifdef _WIN32
     if (!MoveFileEx(old_path, new_path, MOVEFILE_REPLACE_EXISTING)) {
-        nob_log(NOB_ERROR, "could not rename %s to %s: %lu", old_path, new_path, GetLastError());
+        if (echo) nob_log(NOB_ERROR, "could not rename %s to %s: %lu", old_path, new_path, GetLastError());
         return false;
     }
 #else
     if (rename(old_path, new_path) < 0) {
-        nob_log(NOB_ERROR, "could not rename %s to %s: %s", old_path, new_path, strerror(errno));
+			if (echo) nob_log(NOB_ERROR, "could not rename %s to %s: %s", old_path, new_path, strerror(errno));
         return false;
     }
 #endif // _WIN32

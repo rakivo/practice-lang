@@ -108,10 +108,14 @@ main(int argc, const char *argv[])
 	compiler_compile(&compiler);
 
 	Nob_Cmd cmd = {0};
-	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS, ASM_OUTPUT_FLAGS);
+	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS);
 	nob_cmd_run_sync(cmd, false);
-
 	cmd.count = 0;
+
+#ifndef DEBUG
+	nob_rename(EXECUTABLE_OUTPUT".tmp", OBJECT_OUTPUT, false);
+#endif
+
 	nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
 	nob_cmd_run_sync(cmd, false);
 

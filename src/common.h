@@ -9,7 +9,6 @@
 // #define PRINT_ASTS
 // #define PRINT_STACK
 // #define MEM_PRINT 1
-#define DEBUG 1
 
 typedef int64_t i64;
 typedef int32_t i32;

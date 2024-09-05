@@ -4,10 +4,6 @@
 #include "ast.h"
 #include "common.h"
 
-#ifndef DEBUG
-	#define FASM
-#endif
-
 #define WORD_SIZE 8
 
 #define OBJECT_OUTPUT "out.o"
@@ -19,10 +15,14 @@
 
 #define PATH_TO_LD_EXECUTABLE "/usr/bin/ld"
 
+#ifndef DEBUG
+	#define FASM
+#endif
+
 #ifdef FASM
 	#define DEFINE "define"
 	#define GLOBAL "public"
-	#define ASM_FLAGS
+	#define ASM_FLAGS "-m", "524288", EXECUTABLE_OUTPUT".tmp"
 	#define COMPTIME_EQU "="
 	#define RESERVE_QUAD "rq"
 	#define FORMAT_64BIT "format ELF64"

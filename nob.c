@@ -4,10 +4,16 @@
 #include <string.h>
 #include <limits.h>
 
-#define DEBUG
+// #define DEBUG
 
 #ifndef CC
 	#define CC "clang"
+#endif
+
+#ifndef DEBUG
+	#define CFLAGS "-std=c11", "-O0", "-g"
+#else
+	#define CFLAGS "-std=c11", "-O0", "-g", "-DDEBUG"
 #endif
 
 #define C_EXT "c"
@@ -18,7 +24,6 @@
 #define ROOT_FILE_NOEXT "main.c"
 #define ROOT_FILE (SRC_DIR"/main.c")
 #define COMMON_H (SRC_DIR"/common.h")
-#define CFLAGS "-std=c11", "-O0", "-g"
 #define WFLAGS "-Wall", "-Wextra", "-Wpedantic", "-Wswitch-enum", "-Wno-gnu-zero-variadic-macro-arguments", "-Wno-gnu-folding-constant", "-Wno-gnu-empty-struct", "-Wno-excess-initializers", "-Wno-unsequenced"
 
 #define nob_da_free_items(what) do { \
