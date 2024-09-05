@@ -9,8 +9,12 @@ OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_FILES))
 
 CC := clang
 
-WARN_FLAGS := -Wall -Wextra -Wpedantic -Wswitch-enum -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-folding-constant -Wno-gnu-empty-struct -Wno-excess-initializers -Wno-unsequenced
+WFLAGS := -Wall -Wextra -Wpedantic -Wswitch-enum -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-folding-constant -Wno-gnu-empty-struct -Wno-excess-initializers -Wno-unsequenced
 CFLAGS := -std=c11 -O0 -g
+
+ifeq ($(DEBUG), 1)
+	CFLAGS += -DDEBUG
+endif
 
 all: $(BUILD_DIR)/$(BIN_FILE)
 
@@ -18,7 +22,7 @@ $(BUILD_DIR):
 	mkdir -p $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_FILES) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(WARN_FLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/$(BIN_FILE): $(ROOT_FILE) $(OBJ_FILES) $(BUILD_DIR)
-	$(CC) -o $@ $(CFLAGS) $(WARN_FLAGS) $(OBJ_FILES) $<
+	$(CC) -o $@ $(CFLAGS) $(WFLAGS) $(OBJ_FILES) $<
