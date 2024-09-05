@@ -3,6 +3,7 @@
 #include "common.h"
 #include "compiler.h"
 
+#include "nob.h"
 #include "stb_ds.h"
 
 #include <stdio.h>
@@ -27,14 +28,27 @@
 	#define FASM
 #endif
 
+#define WORD_SIZE 8
+
+#define OBJECT_OUTPUT "out.o"
+#define X86_64_OUTPUT "out.asm"
+#define EXECUTABLE_OUTPUT "out"
+
+#define ASM_OUTPUT_FLAGS "-o", OBJECT_OUTPUT
+#define LD_OUTPUT_FLAGS "-o", EXECUTABLE_OUTPUT
+
+#define PATH_TO_LD_EXECUTABLE "/usr/bin/ld"
+
 #ifdef FASM
 	#define DEFINE "define"
 	#define GLOBAL "public"
+	#define ASM_FLAGS
 	#define COMPTIME_EQU "="
 	#define RESERVE_QUAD "rq"
 	#define FORMAT_64BIT "format ELF64"
 	#define RESERVE_QUAD_WORD "rq"
 	#define SECTION_BSS_WRITEABLE "section '.bss' writeable"
+	#define PATH_TO_ASM_EXECUTABLE "/usr/bin/fasm"
 	#define SECTION_DATA_WRITEABLE "section '.data' writeable"
 	#define SECTION_TEXT_EXECUTABLE "section '.text' executable"
 #else
@@ -45,12 +59,11 @@
 	#define FORMAT_64BIT "BITS 64"
 	#define RESERVE_QUAD_WORD "resq"
 	#define SECTION_BSS_WRITEABLE "section .bss"
+	#define ASM_FLAGS "-f", "elf64", "-g", "-F", "dwarf"
+	#define PATH_TO_ASM_EXECUTABLE "/usr/bin/nasm"
 	#define SECTION_DATA_WRITEABLE "section .data"
 	#define SECTION_TEXT_EXECUTABLE "section .text"
 #endif // FASM
-
-#define WORD_SIZE 8
-#define x86_64_output "out.asm"
 
 static FILE *stream = NULL;
 
@@ -881,7 +894,9 @@ print_data_section(void)
 }
 
 Compiler
-new_compiler(ast_id_t ast_cur, const_map_t *const_map, var_map_t *var_map)
+new_compiler(ast_id_t ast_cur,
+						 const_map_t *const_map,
+						 var_map_t *var_map)
 {
 	return (Compiler) {
 		.ast_cur = ast_cur,
@@ -891,7 +906,7 @@ new_compiler(ast_id_t ast_cur, const_map_t *const_map, var_map_t *var_map)
 			.called_funcptr = false
 		},
 		.var_map = var_map,
-		.const_map = const_map
+		.const_map = const_map,
 	};
 }
 
@@ -907,7 +922,7 @@ compiler_emergency_clean(void)
 {
 	compiler_deinit();
 	main_deinit();
-	remove(x86_64_output);
+	remove(X86_64_OUTPUT);
 }
 
 static void
@@ -990,10 +1005,8 @@ static void compile_func(Compiler *ctx, const ast_t *ast)
 
 	rsp_stack_mov_to_rsp();
 	wtln("pop rax");
-
 	wtln("push rdi");
 	wtln("push rax");
-
 	wtln("ret");
 
 	ctx->func_ctx.stmt = NULL;
@@ -1004,9 +1017,9 @@ static void compile_func(Compiler *ctx, const ast_t *ast)
 void
 compiler_compile(Compiler *ctx)
 {
-	stream = fopen(x86_64_output, "w");
+	stream = fopen(X86_64_OUTPUT, "w");
 	if (stream == NULL) {
-		eprintf("error: Failed to open file: %s\n", x86_64_output);
+		eprintf("error: Failed to open file: %s\n", X86_64_OUTPUT);
 		exit(EXIT_FAILURE);
 	}
 
@@ -1087,6 +1100,16 @@ compiler_compile(Compiler *ctx)
 	}
 
 	compiler_deinit();
+
+	Nob_Cmd cmd = {0};
+	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS, ASM_OUTPUT_FLAGS);
+	nob_cmd_run_sync(cmd, false);
+
+	cmd.count = 0;
+	nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
+	nob_cmd_run_sync(cmd, false);
+
+	nob_cmd_free(cmd);
 }
 
 /* TODO:

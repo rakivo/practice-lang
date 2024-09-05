@@ -201,10 +201,10 @@ void nob_cmd_render(Nob_Cmd cmd, Nob_String_Builder *render);
 #define nob_cmd_free(cmd) NOB_FREE(cmd.items)
 
 // Run command asynchronously
-Nob_Proc nob_cmd_run_async(Nob_Cmd cmd);
+Nob_Proc nob_cmd_run_async(Nob_Cmd cmd, bool echo);
 
 // Run command synchronously
-bool nob_cmd_run_sync(Nob_Cmd cmd);
+bool nob_cmd_run_sync(Nob_Cmd cmd, bool echo);
 
 #ifndef NOB_TEMP_CAPACITY
 #define NOB_TEMP_CAPACITY (8*1024*1024)
@@ -233,7 +233,7 @@ int nob_file_exists(const char *file_path);
 #       define NOB_REBUILD_URSELF(binary_path, source_path) "cl.exe", nob_temp_sprintf("/Fe:%s", (binary_path)), source_path
 #    endif
 #  else
-#    define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-g -o", binary_path, source_path
+#    define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-o", binary_path, source_path
 #  endif
 #endif
 
@@ -276,16 +276,15 @@ int nob_file_exists(const char *file_path);
             if (!nob_rename(binary_path, sb.items)) exit(1);                                 \
             Nob_Cmd rebuild = {0};                                                           \
             nob_cmd_append(&rebuild, NOB_REBUILD_URSELF(binary_path, source_path));          \
-            bool rebuild_succeeded = nob_cmd_run_sync(rebuild);                              \
+            bool rebuild_succeeded = nob_cmd_run_sync(rebuild, true);                        \
             nob_cmd_free(rebuild);                                                           \
             if (!rebuild_succeeded) {                                                        \
                 nob_rename(sb.items, binary_path);                                           \
                 exit(1);                                                                     \
             }                                                                                \
-                                                                                             \
             Nob_Cmd cmd = {0};                                                               \
             nob_da_append_many(&cmd, argv, argc);                                            \
-            if (!nob_cmd_run_sync(cmd)) exit(1);                                             \
+            if (!nob_cmd_run_sync(cmd, true)) exit(1);												\
             exit(0);                                                                         \
         }                                                                                    \
     } while(0)
@@ -477,74 +476,76 @@ void nob_cmd_render(Nob_Cmd cmd, Nob_String_Builder *render)
     }
 }
 
-Nob_Proc nob_cmd_run_async(Nob_Cmd cmd)
+Nob_Proc nob_cmd_run_async(Nob_Cmd cmd, bool echo)
 {
-    if (cmd.count < 1) {
-        nob_log(NOB_ERROR, "Could not run empty command");
-        return NOB_INVALID_PROC;
-    }
+	if (cmd.count < 1) {
+		nob_log(NOB_ERROR, "Could not run empty command");
+		return NOB_INVALID_PROC;
+	}
 
-    Nob_String_Builder sb = {0};
-    nob_cmd_render(cmd, &sb);
-    nob_sb_append_null(&sb);
-    nob_log(NOB_INFO, "CMD: %s", sb.items);
-    nob_sb_free(sb);
-    memset(&sb, 0, sizeof(sb));
+	Nob_String_Builder sb = {0};
+	if (echo) {
+		nob_cmd_render(cmd, &sb);
+		nob_sb_append_null(&sb);
+		nob_log(NOB_INFO, "CMD: %s", sb.items);
+		nob_sb_free(sb);
+	}
+	memset(&sb, 0, sizeof(sb));
 
 #ifdef _WIN32
-    // https://docs.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
+	// https://docs.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
 
-    STARTUPINFO siStartInfo;
-    ZeroMemory(&siStartInfo, sizeof(siStartInfo));
-    siStartInfo.cb = sizeof(STARTUPINFO);
-    // NOTE: theoretically setting NULL to std handles should not be a problem
-    // https://docs.microsoft.com/en-us/windows/console/getstdhandle?redirectedfrom=MSDN#attachdetach-behavior
-    // TODO: check for errors in GetStdHandle
-    siStartInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    siStartInfo.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    siStartInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+	STARTUPINFO siStartInfo;
+	ZeroMemory(&siStartInfo, sizeof(siStartInfo));
+	siStartInfo.cb = sizeof(STARTUPINFO);
+	// NOTE: theoretically setting NULL to std handles should not be a problem
+	// https://docs.microsoft.com/en-us/windows/console/getstdhandle?redirectedfrom=MSDN#attachdetach-behavior
+	// TODO: check for errors in GetStdHandle
+	siStartInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+	siStartInfo.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+	siStartInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+	siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-    PROCESS_INFORMATION piProcInfo;
-    ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
+	PROCESS_INFORMATION piProcInfo;
+	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
 
-    // TODO: use a more reliable rendering of the command instead of cmd_render
-    // cmd_render is for logging primarily
-    nob_cmd_render(cmd, &sb);
-    nob_sb_append_null(&sb);
-    BOOL bSuccess = CreateProcessA(NULL, sb.items, NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &piProcInfo);
-    nob_sb_free(sb);
+	// TODO: use a more reliable rendering of the command instead of cmd_render
+	// cmd_render is for logging primarily
+	nob_cmd_render(cmd, &sb);
+	nob_sb_append_null(&sb);
+	BOOL bSuccess = CreateProcessA(NULL, sb.items, NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &piProcInfo);
+	nob_sb_free(sb);
 
-    if (!bSuccess) {
-        nob_log(NOB_ERROR, "Could not create child process: %lu", GetLastError());
-        return NOB_INVALID_PROC;
-    }
+	if (!bSuccess) {
+		nob_log(NOB_ERROR, "Could not create child process: %lu", GetLastError());
+		return NOB_INVALID_PROC;
+	}
 
-    CloseHandle(piProcInfo.hThread);
+	CloseHandle(piProcInfo.hThread);
 
-    return piProcInfo.hProcess;
+	return piProcInfo.hProcess;
 #else
-    pid_t cpid = fork();
-    if (cpid < 0) {
-        nob_log(NOB_ERROR, "Could not fork child process: %s", strerror(errno));
-        return NOB_INVALID_PROC;
-    }
+	pid_t cpid = fork();
+	if (cpid < 0) {
+		nob_log(NOB_ERROR, "Could not fork child process: %s", strerror(errno));
+		return NOB_INVALID_PROC;
+	}
 
-    if (cpid == 0) {
-        // NOTE: This leaks a bit of memory in the child process.
-        // But do we actually care? It's a one off leak anyway...
-        Nob_Cmd cmd_null = {0};
-        nob_da_append_many(&cmd_null, cmd.items, cmd.count);
-        nob_cmd_append(&cmd_null, NULL);
+	if (cpid == 0) {
+		// NOTE: This leaks a bit of memory in the child process.
+		// But do we actually care? It's a one off leak anyway...
+		Nob_Cmd cmd_null = {0};
+		nob_da_append_many(&cmd_null, cmd.items, cmd.count);
+		nob_cmd_append(&cmd_null, NULL);
 
-        if (execvp(cmd.items[0], (char * const*) cmd_null.items) < 0) {
-            nob_log(NOB_ERROR, "Could not exec child process: %s", strerror(errno));
-            exit(1);
-        }
-        NOB_ASSERT(0 && "unreachable");
-    }
+		if (execvp(cmd.items[0], (char * const*) cmd_null.items) < 0) {
+			nob_log(NOB_ERROR, "Could not exec child process: %s", strerror(errno));
+			exit(1);
+		}
+		NOB_ASSERT(0 && "unreachable");
+	}
 
-    return cpid;
+	return cpid;
 #endif
 }
 
@@ -614,11 +615,11 @@ bool nob_proc_wait(Nob_Proc proc)
 #endif
 }
 
-bool nob_cmd_run_sync(Nob_Cmd cmd)
+bool nob_cmd_run_sync(Nob_Cmd cmd, bool echo)
 {
-    Nob_Proc p = nob_cmd_run_async(cmd);
-    if (p == NOB_INVALID_PROC) return false;
-    return nob_proc_wait(p);
+	Nob_Proc p = nob_cmd_run_async(cmd, echo);
+	if (p == NOB_INVALID_PROC) return false;
+	return nob_proc_wait(p);
 }
 
 char *nob_shift_args(int *argc, char ***argv)

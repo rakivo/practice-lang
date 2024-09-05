@@ -4,6 +4,8 @@
 #include <string.h>
 #include <limits.h>
 
+#define DEBUG
+
 #ifndef CC
 	#define CC "clang"
 #endif
@@ -100,7 +102,11 @@ main(int argc, char *argv[])
 		if (nob_needs_rebuild(obj_files.items[i], (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
 			cmd.count = 0;
 			nob_cmd_append(&cmd, CC, CFLAGS, WFLAGS, "-c", c_files.items[i], "-o", obj_files.items[i]);
-			nob_cmd_run_sync(cmd);
+#ifdef DEBUG
+			nob_cmd_run_sync(cmd, true);
+#else
+			nob_cmd_run_async(cmd, true);
+#endif
 		}
 	}
 
@@ -115,7 +121,7 @@ main(int argc, char *argv[])
 			nob_cmd_append(&cmd, obj_files.items[i]);
 		}
 		nob_cmd_append(&cmd, ROOT_FILE);
-		nob_cmd_run_sync(cmd);
+		nob_cmd_run_sync(cmd, true);
 	}
 
 	nob_cmd_free(cmd);
