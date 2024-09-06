@@ -83,15 +83,17 @@ const char *
 arg_to_str(const arg_t *proc_arg);
 
 typedef struct {
-	const token_t *name;
+	bool inlin;
 	arg_t *args;
 	ast_id_t body;
+	const token_t *name;
 } proc_stmt_t;
 
 typedef struct {
-	const token_t *name;
-	ast_id_t body;
+	bool inlin;
 	arg_t *args;
+	ast_id_t body;
+	const token_t *name;
 	value_kind_t *ret_types;
 } func_stmt_t;
 

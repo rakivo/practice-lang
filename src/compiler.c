@@ -227,12 +227,63 @@ check_stack_for_last(const Compiler *ctx, const char *op, const ast_t *ast)
 }
 
 // Perform binary operation with rax, rbx
-#define print_binop(...) do {									\
+#define print_binop(...) do {	\
 	wtln("pop rbx"); \
 	wtln("mov rax, qword [rsp]"); \
 	wtln(__VA_ARGS__); \
 	wtln("mov [rsp], rax"); \
 } while (0)
+
+static void
+rsp_stack_mov_rsp(void)
+{
+	wtln("mov rax, qword [rsp_stack_ptr]");
+	wtln("mov qword [rax], rsp");
+	wtln("add qword [rsp_stack_ptr], WORD_SIZE");
+}
+
+static void
+rsp_stack_mov_to_rsp(void)
+{
+	wtln("sub qword [rsp_stack_ptr], WORD_SIZE");
+	wtln("mov rax, qword [rsp_stack_ptr]");
+	wtln("mov rsp, qword [rax]");
+}
+
+static void
+compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
+{
+	const void *old_stmt = NULL;
+	if (is_proc) {
+		old_stmt = ctx->proc_ctx.stmt;
+		ctx->proc_ctx.stmt = &decl_ast->proc_stmt;
+	} else {
+		old_stmt = ctx->func_ctx.stmt;
+		ctx->func_ctx.stmt = &decl_ast->func_stmt;
+	}
+
+	rsp_stack_mov_rsp();
+	ast_t ast = astid(is_proc ? decl_ast->proc_stmt.body : decl_ast->func_stmt.body);
+	compile_block(ctx, ast);
+
+	const size_t ret_types_count = vec_size(decl_ast->func_stmt.ret_types);
+	for (size_t i = 0; i < ret_types_count; ++i) {
+		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+	}
+
+	rsp_stack_mov_to_rsp();
+	wtprintln("add rsp, %u", vec_size(decl_ast->func_stmt.args) * WORD_SIZE);
+
+	for (size_t i = 0; i < ret_types_count; ++i) {
+		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+	}
+
+	if (is_proc) {
+		ctx->proc_ctx.stmt = (const proc_stmt_t *) old_stmt;
+	} else {
+		ctx->func_ctx.stmt = (const func_stmt_t *) old_stmt;
+	}
+}
 
 static size_t arg_idx = 0;
 
@@ -472,8 +523,10 @@ compile_loop:
 					size_t stack_idx = 0;
 					if (ctx->proc_ctx.stmt != NULL) {
 						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size;
+						if (ctx->proc_ctx.stmt->inlin) stack_idx--;
 					} else {
 						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size;
+						if (ctx->func_ctx.stmt->inlin) stack_idx--;
 					}
 
 					wtprintln("mov rax, [rsp + %zu]", stack_idx * WORD_SIZE);
@@ -526,10 +579,19 @@ compile_loop:
 				.is_used = true
 			};
 
-			if (value.ast_kind == AST_PROC) {
-				wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
+			if (value.ast_kind == AST_PROC && decl_ast->proc_stmt.body >= 0) {
+				if (decl_ast->proc_stmt.inlin) {
+					compile_inline(ctx, decl_ast, true);
+				} else {
+					wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
+				}
 			} else {
-				wtprintln("call __%s__", decl_ast->func_stmt.name->str);
+				if (decl_ast->func_stmt.inlin && decl_ast->func_stmt.body >= 0) {
+					compile_inline(ctx, decl_ast, false);
+				} else {
+					wtprintln("call __%s__", decl_ast->func_stmt.name->str);
+				}
+
 				for (size_t i = vec_size(decl_ast->func_stmt.ret_types); i > 0; --i) {
 					stack_add_type(ctx, decl_ast->func_stmt.ret_types[i - 1]);
 				}
@@ -553,10 +615,18 @@ compile_loop:
 				size_t stack_idx = 0;
 				if (ctx->proc_ctx.stmt != NULL) {
 					ctx->proc_ctx.called_funcptr = true;
-					stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size + 1;
+					if (ctx->proc_ctx.stmt->inlin) {
+						stack_idx = ctx->proc_ctx.stack_size - arg_idx;
+					} else {
+						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size;
+					}
 				} else {
 					ctx->func_ctx.called_funcptr = true;
-					stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size + 1;
+					if (ctx->func_ctx.stmt->inlin) {
+						stack_idx = ctx->func_ctx.stack_size - arg_idx;
+					} else {
+						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size;
+					}
 				}
 
 				wtprintln("call qword [rsp + %zu]", stack_idx * WORD_SIZE);
@@ -964,22 +1034,6 @@ compiler_emergency_clean(void)
 }
 
 static void
-rsp_stack_mov_rsp(void)
-{
-	wtln("mov rax, qword [rsp_stack_ptr]");
-	wtln("mov qword [rax], rsp");
-	wtln("add qword [rsp_stack_ptr], WORD_SIZE");
-}
-
-static void
-rsp_stack_mov_to_rsp(void)
-{
-	wtln("sub qword [rsp_stack_ptr], WORD_SIZE");
-	wtln("mov rax, qword [rsp_stack_ptr]");
-	wtln("mov rsp, qword [rax]");
-}
-
-static void
 compile_proc(Compiler *ctx, const ast_t *ast)
 {
 #ifdef DEBUG
@@ -1118,11 +1172,13 @@ compiler_compile(Compiler *ctx)
 	// Compile only used procs/funcs
 	for (ptrdiff_t i = 0; i < shlen(values_map); ++i) {
 		const value_t value = values_map[i].value;
-		if (value.ast_kind == AST_PROC // && value.is_used
+		if (value.ast_kind == AST_PROC
+		&& !astid(value.ast_id).proc_stmt.inlin // && value.is_used
 		)
 		{
 			compile_proc(ctx, &astid(value.ast_id));
-		} else if (value.ast_kind == AST_FUNC // && value.is_used
+		} else if (value.ast_kind == AST_FUNC
+					 && !astid(value.ast_id).func_stmt.inlin // && value.is_used
 					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name->str))
 		{
 			compile_func(ctx, &astid(value.ast_id));

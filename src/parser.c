@@ -131,6 +131,29 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		return ast;
 	} break;
 
+	case TOKEN_INLINE: {
+		if (token_idx + 1 >= parser->tc
+		|| (parser->ts[token_idx + 1].kind != TOKEN_PROC
+		 && parser->ts[token_idx + 1].kind != TOKEN_FUNC))
+		{
+			report_error("%s error: expected `proc` or `func` after "
+									 "the inline keyword, but got %s",
+									 loc_to_str(&locid(token->loc_id)),
+									 token_idx + 1 >= parser->tc ? "<eof>" : parser->ts[token_idx + 1].str);
+		}
+
+		token_idx++;
+		ast_t ast = ast_token(parser, &parser->ts[token_idx], false);
+
+		if (ast.ast_kind == AST_PROC) {
+			ast.proc_stmt.inlin = true;
+		} else {
+			ast.func_stmt.inlin = true;
+		}
+
+		return ast;
+	} break;
+
 	case TOKEN_PROC: {
 		// Skip `proc` keyword
 		token_idx++;
@@ -144,6 +167,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				.name = &parser->ts[token_idx++],
 				.args = NULL,
 				.body = -1,
+				.inlin = false
 			}
 		);
 
@@ -233,6 +257,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				.name = &parser->ts[token_idx++],
 				.body = -1,
 				.args = NULL,
+				.inlin = false,
 				.ret_types = NULL
 			}
 		);
@@ -540,5 +565,5 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	case TOKEN_DOT:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DOT,			.dot_stmt			= {0});
 	case TOKEN_BNOT:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_BNOT,			.bnot_stmt		= {0});
 	}
-	UNREACHABLE;
+	__builtin_unreachable();
 }

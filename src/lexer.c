@@ -12,6 +12,7 @@ DECLARE_STATIC(loc, LOC);
 
 const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_IF]				= "if",
+	[TOKEN_INLINE]		= "inline",
 	[TOKEN_ELSE]			= "else",
 	[TOKEN_WHILE]			= "while",
 	[TOKEN_FUNC]			= "func",
@@ -36,6 +37,7 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_INLINE:					return "TOKEN_INLINE";
 	case TOKEN_WRITE:						return "TOKEN_WRITE";
 	case TOKEN_BNOT:						return "TOKEN_BNOT";
 	case TOKEN_SYSCALL:					return "TOKEN_SYSCALL";
@@ -77,6 +79,7 @@ const char *
 token_kind_to_str_pretty(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_INLINE:					return "inline";
 	case TOKEN_CONST:						return "const";
 	case TOKEN_VAR:							return "var";
 	case TOKEN_BNOT:						return "bnot";

@@ -98,7 +98,7 @@ print_ast(const ast_t *ast)
 		FOREACH(value_kind_t, func_ret_type, ast->func_stmt.ret_types) {
 			printf("ret_type: %s\n", value_kind_to_str_pretty(func_ret_type));
 		}
-
+		printf("inlin: %d\n", ast->proc_stmt.inlin);
 	} break;
 
 	case AST_PROC: {
@@ -108,6 +108,7 @@ print_ast(const ast_t *ast)
 			printf("arg: %s\n", arg_to_str(&arg));
 		}
 		printf("body: %d\n", ast->proc_stmt.body);
+		printf("inlin: %d\n", ast->proc_stmt.inlin);
 	} break;
 
 	case AST_PUSH: {
