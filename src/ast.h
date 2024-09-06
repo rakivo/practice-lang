@@ -30,6 +30,7 @@ typedef enum {
 
 	VALUE_KIND_INTEGER,
 	VALUE_KIND_STRING,
+	VALUE_KIND_BYTE,
 	VALUE_KIND_FUNCTION_POINTER,
 
 	// Reserved last variant
@@ -53,6 +54,7 @@ typedef struct {} less_stmt_t;
 typedef struct {} greater_stmt_t;
 typedef struct {} drop_stmt_t;
 typedef struct {} dup_stmt_t;
+typedef struct {} bnot_stmt_t;
 typedef struct {} equal_stmt_t;
 
 typedef struct {
@@ -132,6 +134,7 @@ typedef enum {
 	AST_WHILE,
 	AST_DOT,
 	AST_DUP,
+	AST_BNOT,
 	AST_BOR,
 	AST_MOD,
 	AST_PUSH,
@@ -180,6 +183,7 @@ typedef struct {
 		bor_stmt_t bor_stmt;
 		mod_stmt_t mod_stmt;
 		write_stmt_t write_stmt;
+		bnot_stmt_t bnot_stmt;
 		call_t call;
 		literal_t literal;
 	};

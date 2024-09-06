@@ -17,13 +17,14 @@ do
   x x *
 end
 
-func hel int x
+func hel int
+  int a
 do
+  a 69 0
 end
 
 func main int
 do
-  "helo" hello!
-  4 square! .
+  420 hel! .
   0
 end

@@ -21,6 +21,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_DO]				= "do",
 	[TOKEN_PROC]			= "proc",
 	[TOKEN_VAR]				= "var",
+	[TOKEN_BNOT]			= "bnot",
 	[TOKEN_SYSCALL]		= "syscall",
 	[TOKEN_SYSCALL1]	= "syscall1",
 	[TOKEN_SYSCALL2]	= "syscall2",
@@ -35,39 +36,40 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
-	case TOKEN_WRITE:						return "TOKEN_WRITE";						break;
-	case TOKEN_SYSCALL:					return "TOKEN_SYSCALL";					break;
-	case TOKEN_SYSCALL1:				return "TOKEN_SYSCALL1";				break;
-	case TOKEN_SYSCALL2:				return "TOKEN_SYSCALL2";				break;
-	case TOKEN_SYSCALL3:				return "TOKEN_SYSCALL3";				break;
-	case TOKEN_SYSCALL4:				return "TOKEN_SYSCALL4";				break;
-	case TOKEN_SYSCALL5:				return "TOKEN_SYSCALL5";				break;
-	case TOKEN_SYSCALL6:				return "TOKEN_SYSCALL6";				break;
-	case TOKEN_MOD:							return "TOKEN_MOD";							break;
-	case TOKEN_CONST:						return "TOKEN_CONST";						break;
-	case TOKEN_PROC:						return "TOKEN_PROC";						break;
-	case TOKEN_FUNC:						return "TOKEN_FUNC";						break;
-	case TOKEN_VAR:							return "TOKEN_VAR";							break;
-	case TOKEN_DUP:							return "TOKEN_DUP";							break;
-	case TOKEN_BOR:							return "TOKEN_BOR";							break;
-	case TOKEN_DROP:						return "TOKEN_DROP";						break;
-	case TOKEN_INTEGER:					return "TOKEN_INTEGER";					break;
-	case TOKEN_LITERAL:					return "TOKEN_LITERAL";					break;
-	case TOKEN_STRING_LITERAL:	return "TOKEN_STRING_LITERAL";	break;
-	case TOKEN_PLUS:						return "TOKEN_PLUS";						break;
-	case TOKEN_KEYWORDS_END:		return "TOKEN_KEYWORDS_END";		break;
-	case TOKEN_EQUAL:						return "TOKEN_EQUAL";						break;
-	case TOKEN_MINUS:						return "TOKEN_MINUS";						break;
-	case TOKEN_DIV:							return "TOKEN_DIV";							break;
-	case TOKEN_MUL:							return "TOKEN_MUL";							break;
-	case TOKEN_DOT:							return "TOKEN_DOT";							break;
-	case TOKEN_GREATER:					return "TOKEN_GREATER";					break;
-	case TOKEN_LESS:						return "TOKEN_LESS";						break;
-	case TOKEN_WHILE:						return "TOKEN_WHILE";						break;
-	case TOKEN_DO:							return "TOKEN_DO";							break;
-	case TOKEN_IF:							return "TOKEN_IF";							break;
-	case TOKEN_ELSE:						return "TOKEN_ELSE";						break;
-	case TOKEN_END:							return "TOKEN_END";							break;
+	case TOKEN_WRITE:						return "TOKEN_WRITE";
+	case TOKEN_BNOT:						return "TOKEN_BNOT";
+	case TOKEN_SYSCALL:					return "TOKEN_SYSCALL";
+	case TOKEN_SYSCALL1:				return "TOKEN_SYSCALL1";
+	case TOKEN_SYSCALL2:				return "TOKEN_SYSCALL2";
+	case TOKEN_SYSCALL3:				return "TOKEN_SYSCALL3";
+	case TOKEN_SYSCALL4:				return "TOKEN_SYSCALL4";
+	case TOKEN_SYSCALL5:				return "TOKEN_SYSCALL5";
+	case TOKEN_SYSCALL6:				return "TOKEN_SYSCALL6";
+	case TOKEN_MOD:							return "TOKEN_MOD";
+	case TOKEN_CONST:						return "TOKEN_CONST";
+	case TOKEN_PROC:						return "TOKEN_PROC";
+	case TOKEN_FUNC:						return "TOKEN_FUNC";
+	case TOKEN_VAR:							return "TOKEN_VAR";
+	case TOKEN_DUP:							return "TOKEN_DUP";
+	case TOKEN_BOR:							return "TOKEN_BOR";
+	case TOKEN_DROP:						return "TOKEN_DROP";
+	case TOKEN_INTEGER:					return "TOKEN_INTEGER";
+	case TOKEN_LITERAL:					return "TOKEN_LITERAL";
+	case TOKEN_STRING_LITERAL:	return "TOKEN_STRING_LITERAL";
+	case TOKEN_PLUS:						return "TOKEN_PLUS";
+	case TOKEN_KEYWORDS_END:		return "TOKEN_KEYWORDS_END";
+	case TOKEN_EQUAL:						return "TOKEN_EQUAL";
+	case TOKEN_MINUS:						return "TOKEN_MINUS";
+	case TOKEN_DIV:							return "TOKEN_DIV";
+	case TOKEN_MUL:							return "TOKEN_MUL";
+	case TOKEN_DOT:							return "TOKEN_DOT";
+	case TOKEN_GREATER:					return "TOKEN_GREATER";
+	case TOKEN_LESS:						return "TOKEN_LESS";
+	case TOKEN_WHILE:						return "TOKEN_WHILE";
+	case TOKEN_DO:							return "TOKEN_DO";
+	case TOKEN_IF:							return "TOKEN_IF";
+	case TOKEN_ELSE:						return "TOKEN_ELSE";
+	case TOKEN_END:							return "TOKEN_END";
 	}
 }
 
@@ -75,39 +77,40 @@ const char *
 token_kind_to_str_pretty(const token_kind_t token_kind)
 {
 	switch (token_kind) {
-	case TOKEN_CONST:						return "const";						break;
-	case TOKEN_VAR:							return "var";							break;
-	case TOKEN_SYSCALL:					return "syscall";					break;
-	case TOKEN_SYSCALL1:				return "syscall1";				break;
-	case TOKEN_SYSCALL2:				return "syscall2";				break;
-	case TOKEN_SYSCALL3:				return "syscall3";				break;
-	case TOKEN_SYSCALL4:				return "syscall4";				break;
-	case TOKEN_SYSCALL5:				return "syscall5";				break;
-	case TOKEN_SYSCALL6:				return "syscall6";				break;
-	case TOKEN_PROC:						return "proc";						break;
-	case TOKEN_FUNC:						return "func";						break;
-	case TOKEN_DUP:							return "dup";							break;
-	case TOKEN_DROP:						return "drop";						break;
-	case TOKEN_INTEGER:					return "integer";					break;
-	case TOKEN_LITERAL:					return "literal";					break;
-	case TOKEN_STRING_LITERAL:	return "string literal";	break;
-	case TOKEN_KEYWORDS_END:		return "keywords_end";		break;
-	case TOKEN_PLUS:						return "+";								break;
-	case TOKEN_MOD:							return "%";								break;
-	case TOKEN_BOR:							return "|";								break;
-	case TOKEN_WRITE:						return "!";								break;
-	case TOKEN_EQUAL:						return "=";								break;
-	case TOKEN_MINUS:						return "-";								break;
-	case TOKEN_DIV:							return "/";								break;
-	case TOKEN_MUL:							return "*";								break;
-	case TOKEN_DOT:							return ".";								break;
-	case TOKEN_GREATER:					return ">";								break;
-	case TOKEN_LESS:						return "<";								break;
-	case TOKEN_WHILE:						return "while";						break;
-	case TOKEN_DO:							return "do";							break;
-	case TOKEN_IF:							return "if";							break;
-	case TOKEN_ELSE:						return "else";						break;
-	case TOKEN_END:							return "end";							break;
+	case TOKEN_CONST:						return "const";
+	case TOKEN_VAR:							return "var";
+	case TOKEN_BNOT:						return "bnot";
+	case TOKEN_SYSCALL:					return "syscall";
+	case TOKEN_SYSCALL1:				return "syscall1";
+	case TOKEN_SYSCALL2:				return "syscall2";
+	case TOKEN_SYSCALL3:				return "syscall3";
+	case TOKEN_SYSCALL4:				return "syscall4";
+	case TOKEN_SYSCALL5:				return "syscall5";
+	case TOKEN_SYSCALL6:				return "syscall6";
+	case TOKEN_PROC:						return "proc";
+	case TOKEN_FUNC:						return "func";
+	case TOKEN_DUP:							return "dup";
+	case TOKEN_DROP:						return "drop";
+	case TOKEN_INTEGER:					return "integer";
+	case TOKEN_LITERAL:					return "literal";
+	case TOKEN_STRING_LITERAL:	return "string literal";
+	case TOKEN_KEYWORDS_END:		return "keywords_end";
+	case TOKEN_PLUS:						return "+";
+	case TOKEN_MOD:							return "%";
+	case TOKEN_BOR:							return "|";
+	case TOKEN_WRITE:						return "!";
+	case TOKEN_EQUAL:						return "=";
+	case TOKEN_MINUS:						return "-";
+	case TOKEN_DIV:							return "/";
+	case TOKEN_MUL:							return "*";
+	case TOKEN_DOT:							return ".";
+	case TOKEN_GREATER:					return ">";
+	case TOKEN_LESS:						return "<";
+	case TOKEN_WHILE:						return "while";
+	case TOKEN_DO:							return "do";
+	case TOKEN_IF:							return "if";
+	case TOKEN_ELSE:						return "else";
+	case TOKEN_END:							return "end";
 	}
 }
 
@@ -221,18 +224,18 @@ type_token(const char *str, const loc_t *loc)
 	case LOWER_CHAR_CASE:
 	case UPPER_CHAR_CASE: return TOKEN_LITERAL; break;
 
-	case '.': return TOKEN_DOT;							break;
-	case '!': return TOKEN_WRITE;						break;
-	case '>': return TOKEN_GREATER;					break;
-	case '<': return TOKEN_LESS;						break;
-	case '+': return TOKEN_PLUS;						break;
-	case '-': return TOKEN_MINUS;						break;
-	case '/': return TOKEN_DIV;							break;
-	case '*': return TOKEN_MUL;							break;
-	case '%': return TOKEN_MOD;							break;
-	case '|': return TOKEN_BOR;							break;
-	case '=': return TOKEN_EQUAL;						break;
-	case '"': return TOKEN_STRING_LITERAL;	break;
+	case '.': return TOKEN_DOT;
+	case '!': return TOKEN_WRITE;
+	case '>': return TOKEN_GREATER;
+	case '<': return TOKEN_LESS;
+	case '+': return TOKEN_PLUS;
+	case '-': return TOKEN_MINUS;
+	case '/': return TOKEN_DIV;
+	case '*': return TOKEN_MUL;
+	case '%': return TOKEN_MOD;
+	case '|': return TOKEN_BOR;
+	case '=': return TOKEN_EQUAL;
+	case '"': return TOKEN_STRING_LITERAL;
 	}
 
 	report_error("%s error: unexpected literal: '%s'", loc_to_str(loc), str);

@@ -1,0 +1,18 @@
+const SYS_EXIT 60 end
+
+proc exit
+  int code
+do
+  code SYS_EXIT syscall1
+end
+
+proc todo
+  str what
+do
+  "TODO: " . what . 1 exit!
+end
+
+func main int do
+  "urmom\n" todo!
+  0
+end

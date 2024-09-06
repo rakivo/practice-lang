@@ -25,11 +25,12 @@ const char *
 value_kind_to_str_pretty(value_kind_t kind)
 {
 	switch (kind) {
-	case VALUE_KIND_FUNCTION_POINTER: return "funcptr";		break;
-	case VALUE_KIND_POISONED:					return "poisoned";	break;
-	case VALUE_KIND_STRING:						return "str";				break;
-	case VALUE_KIND_INTEGER:					return "int";				break;
-	case VALUE_KIND_LAST:							return "last";			break;
+	case VALUE_KIND_BYTE:							return "byte";
+	case VALUE_KIND_FUNCTION_POINTER: return "funcptr";
+	case VALUE_KIND_POISONED:					return "poisoned";
+	case VALUE_KIND_STRING:						return "str";
+	case VALUE_KIND_INTEGER:					return "int";
+	case VALUE_KIND_LAST:							return "last";
 	}
 }
 
@@ -141,6 +142,7 @@ print_ast(const ast_t *ast)
 	case AST_LESS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_CALL:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_BOR:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_BNOT:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_GREATER:  printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	case AST_POISONED: printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	}
@@ -150,30 +152,31 @@ const char *
 ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
-	case AST_CALL:			return "AST_CALL";			break;
-	case AST_WRITE:			return "AST_WRITE";			break;
-	case AST_VAR:				return "AST_VAR";				break;
-	case AST_BOR:				return "AST_BOR";				break;
-	case AST_MOD:				return "AST_MOD";				break;
-	case AST_SYSCALL:		return "AST_SYSCALL";		break;
-	case AST_FUNC:			return "AST_FUNC";			break;
-	case AST_DUP:				return "AST_DUP";				break;
-	case AST_LITERAL:		return "AST_LITERAL";		break;
-	case AST_PROC:			return "AST_PROC";			break;
-	case AST_DROP:			return "AST_DROP";			break;
-	case AST_IF:				return "AST_IF";				break;
-	case AST_POISONED:	return "AST_POISONED";	break;
-	case AST_WHILE:			return "AST_WHILE";			break;
-	case AST_PUSH:			return "AST_PUSH";			break;
-	case AST_PLUS:			return "AST_PLUS";			break;
-	case AST_DIV:				return "AST_DIV";				break;
-	case AST_MUL:				return "AST_MUL";				break;
-	case AST_MINUS:			return "AST_MINUS";			break;
-	case AST_DOT:				return "AST_DOT";				break;
-	case AST_EQUAL:			return "AST_EQUAL";			break;
-	case AST_LESS:			return "AST_LESS";			break;
-	case AST_GREATER:		return "AST_GREATER";		break;
-	case AST_CONST:			return "AST_CONST";		break;
+	case AST_CALL:			return "AST_CALL";
+	case AST_BNOT:			return "AST_BNOT";
+	case AST_WRITE:			return "AST_WRITE";
+	case AST_VAR:				return "AST_VAR";
+	case AST_BOR:				return "AST_BOR";
+	case AST_MOD:				return "AST_MOD";
+	case AST_SYSCALL:		return "AST_SYSCALL";
+	case AST_FUNC:			return "AST_FUNC";
+	case AST_DUP:				return "AST_DUP";
+	case AST_LITERAL:		return "AST_LITERAL";
+	case AST_PROC:			return "AST_PROC";
+	case AST_DROP:			return "AST_DROP";
+	case AST_IF:				return "AST_IF";
+	case AST_POISONED:	return "AST_POISONED";
+	case AST_WHILE:			return "AST_WHILE";
+	case AST_PUSH:			return "AST_PUSH";
+	case AST_PLUS:			return "AST_PLUS";
+	case AST_DIV:				return "AST_DIV";
+	case AST_MUL:				return "AST_MUL";
+	case AST_MINUS:			return "AST_MINUS";
+	case AST_DOT:				return "AST_DOT";
+	case AST_EQUAL:			return "AST_EQUAL";
+	case AST_LESS:			return "AST_LESS";
+	case AST_GREATER:		return "AST_GREATER";
+	case AST_CONST:			return "AST_CONST";
 	}
 }
 

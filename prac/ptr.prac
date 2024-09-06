@@ -1,0 +1,32 @@
+const SYS_WRITE  1 end
+const SYS_STDOUT 1 end
+
+func not int
+  int x
+do
+  x 1 = if 0 else 1 end
+end
+
+var idx 0 end
+
+func strlen int
+  str s
+do
+  # byte [s + idx]
+  while s idx! + 0 = not! do
+    idx! 1 + !idx # idx += 1
+  end
+  idx!
+end
+
+proc print_str
+  str s
+  int n
+do
+  SYS_STDOUT s n SYS_WRITE syscall3
+end
+
+func main int do
+  "hello\n" dup strlen! print_str!
+  0
+end

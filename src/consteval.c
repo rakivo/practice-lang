@@ -45,6 +45,7 @@ op_from_ast_kind(ast_kind_t ast_kind)
 	case AST_FUNC:
 	case AST_VAR:
 	case AST_PROC:
+	case AST_BNOT:
 	case AST_WHILE:
 	case AST_DOT:
 	case AST_DUP:
@@ -107,6 +108,16 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 		consteval->stack_size++;
 	} break;
 
+	case AST_BNOT: {
+		if (consteval->stack_size < 1) {
+			report_error("%s error: stack underflow bruv",
+									 loc_to_str(&locid(ast->loc_id)));
+		}
+
+		consteval->stack[consteval->stack_size - 1].value =
+			!consteval->stack[consteval->stack_size - 1].value;
+	}
+
 	case AST_PUSH: {
 		consteval_value_t value = {
 			.value = 0,
@@ -114,6 +125,8 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 		};
 
 		switch (ast->push_stmt.value_kind) {
+		case VALUE_KIND_BYTE: TODO break;
+
 		case VALUE_KIND_INTEGER: {
 			value.value = ast->push_stmt.integer;
 		} break;

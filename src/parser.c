@@ -538,6 +538,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	case TOKEN_PLUS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_PLUS,			.plus_stmt		= {0});
 	case TOKEN_MOD:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_MOD,			.mod_stmt			= {0});
 	case TOKEN_DOT:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DOT,			.dot_stmt			= {0});
+	case TOKEN_BNOT:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_BNOT,			.bnot_stmt		= {0});
 	}
 	UNREACHABLE;
 }

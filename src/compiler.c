@@ -165,7 +165,7 @@ get_type_from_end(const Compiler *ctx, size_t idx)
 }
 
 // Check the stack size and types of values on the stack before performing a binop.
-INLINE void
+void
 check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const ast_t *ast)
 {
 	const value_kind_t *first_type = get_type_from_end(ctx, 1);
@@ -176,12 +176,32 @@ check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const a
 	} else if (*first_type  != VALUE_KIND_INTEGER
 				 ||  *second_type != VALUE_KIND_INTEGER)
 	{
-		report_error("%s error: expected two integers on the stack, but got: %s and %s",
+		report_error("%s error: expected two integers on the stack, but got: `%s` and `%s`",
 								 loc_to_str(&locid(ast->loc_id)),
 								 value_kind_to_str_pretty(*second_type),
 								 value_kind_to_str_pretty(*first_type));
 	}
 }
+
+// void
+// check_for_two_types_on_the_stack(const Compiler *ctx, value_kind_t ft, value_kind_t st, const char *op, const ast_t *ast)
+// {
+// 	const value_kind_t *first_type = get_type_from_end(ctx, 1);
+// 	const value_kind_t *second_type = get_type_from_end(ctx, 0);
+
+// 	if (second_type == NULL || first_type == NULL) {
+// 		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
+// 	} else if (*first_type  != ft
+// 				 ||  *second_type != st)
+// 	{
+// 		report_error("%s error: expected to have `%s` and `%s` on the stack, but got: `%s` and `%s`",
+// 								 loc_to_str(&locid(ast->loc_id)),
+// 								 value_kind_to_str_pretty(ft),
+// 								 value_kind_to_str_pretty(st),
+// 								 value_kind_to_str_pretty(*second_type),
+// 								 value_kind_to_str_pretty(*first_type));
+// 	}
+// }
 
 INLINE void
 check_for_integer_on_the_stack(const Compiler *ctx, const char *op, const char *msg, const ast_t *ast)
@@ -207,7 +227,7 @@ check_stack_for_last(const Compiler *ctx, const char *op, const ast_t *ast)
 }
 
 // Perform binary operation with rax, rbx
-#define print_binop(...) do { \
+#define print_binop(...) do {									\
 	wtln("pop rbx"); \
 	wtln("mov rax, qword [rsp]"); \
 	wtln(__VA_ARGS__); \
@@ -567,6 +587,7 @@ compile_loop:
 			vec_add(strs, ast->push_stmt.str);
 		} break;
 
+		case VALUE_KIND_BYTE: TODO break;
 		case VALUE_KIND_FUNCTION_POINTER:
 		case VALUE_KIND_POISONED:
 		case VALUE_KIND_LAST:	UNREACHABLE; break;
@@ -574,9 +595,64 @@ compile_loop:
 	} break;
 
 	case AST_PLUS: {
-		check_for_two_integers_on_the_stack(ctx, "+", ast);
-		print_binop("add rax, rbx");
-		stack_pop(ctx);
+		const value_kind_t *first_type = get_type_from_end(ctx, 0);
+		const value_kind_t *second_type = get_type_from_end(ctx, 1);
+
+		if (second_type == NULL || first_type == NULL) {
+			report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), "+");
+		} else if ((*first_type  != VALUE_KIND_INTEGER && *first_type  != VALUE_KIND_STRING)
+					 ||  (*second_type != VALUE_KIND_INTEGER && *second_type != VALUE_KIND_STRING))
+		{
+			report_error("%s error: expected to have two `str` or `int`s on the stack, but got: `%s` and `%s`",
+									 loc_to_str(&locid(ast->loc_id)),
+									 value_kind_to_str_pretty(*second_type),
+									 value_kind_to_str_pretty(*first_type));
+		}
+
+		if (*first_type == VALUE_KIND_INTEGER
+		&& *second_type == VALUE_KIND_INTEGER)
+		{
+			print_binop("add rax, rbx");
+			stack_pop(ctx);
+			return;
+		}
+
+		switch (*first_type) {
+		case VALUE_KIND_INTEGER: {
+			wtln("pop rbx");
+			wtln("mov rax, qword [rsp]");
+			wtln("mov al, byte [rax + rbx]");
+			wtln("movzx rax, al");
+			wtln("mov [rsp], rax");
+			stack_pop(ctx);
+			// *stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_BYTE;
+			*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
+		} break;
+
+		case VALUE_KIND_STRING: TODO break;
+
+		case VALUE_KIND_BYTE: TODO break;
+
+		case VALUE_KIND_FUNCTION_POINTER:
+		case VALUE_KIND_POISONED:
+		case VALUE_KIND_LAST: UNREACHABLE;
+		}
+	} break;
+
+	case AST_BNOT: {
+		const value_kind_t *type = get_type_from_end(ctx, 0);
+
+		if (type == NULL) {
+			report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), "+");
+		} else if (*type  != VALUE_KIND_INTEGER && *type  != VALUE_KIND_BYTE) {
+			report_error("%s error: expected to have a `byte` or an `int` on the stack, but got: `%s`",
+									 loc_to_str(&locid(ast->loc_id)),
+									 value_kind_to_str_pretty(*type));
+		}
+
+		wtln("mov rax, [rsp]");
+		wtln("not rax");
+		wtln("mov [rsp], rax");
 	} break;
 
 	case AST_BOR: {
@@ -667,6 +743,8 @@ compile_loop:
 	case AST_DOT: {
 		value_kind_t last_type = check_stack_for_last(ctx, ".", ast);
 		switch (last_type) {
+		case VALUE_KIND_BYTE: TODO break;
+
 		case VALUE_KIND_FUNCTION_POINTER:
 		case VALUE_KIND_INTEGER: {
 			wtln("mov rax, qword [rsp]");
@@ -921,6 +999,9 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 	}
 
 	rsp_stack_mov_to_rsp();
+	wtln("pop rax");
+	wtprintln("add rsp, %u", (vec_size(ast->proc_stmt.args)) * WORD_SIZE);
+	wtln("push rax");
 	wtln("ret");
 
 	ctx->proc_ctx.stmt = NULL;
@@ -987,6 +1068,8 @@ compile_func(Compiler *ctx, const ast_t *ast)
 
 	rsp_stack_mov_to_rsp();
 	wtln("pop rax");
+
+	wtprintln("add rsp, %u", (vec_size(ast->func_stmt.args)) * WORD_SIZE);
 
 	for (size_t i = 0; i < ret_types_count; ++i) {
 		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
