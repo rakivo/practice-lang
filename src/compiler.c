@@ -254,33 +254,52 @@ static void
 compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 {
 	const void *old_stmt = NULL;
+	size_t old_stack_size = 0;
+	value_kind_t old_stack_types[FUNC_CTX_MAX_STACK_TYPES_CAP];
 	if (is_proc) {
 		old_stmt = ctx->proc_ctx.stmt;
+		old_stack_size = ctx->proc_ctx.stack_size;
 		ctx->proc_ctx.stmt = &decl_ast->proc_stmt;
+		ctx->proc_ctx.stack_size = 0;
+		memcpy(old_stack_types, ctx->proc_ctx.stack_types, ctx->proc_ctx.stack_size);
 	} else {
 		old_stmt = ctx->func_ctx.stmt;
+		old_stack_size = ctx->func_ctx.stack_size;
 		ctx->func_ctx.stmt = &decl_ast->func_stmt;
+		ctx->func_ctx.stack_size = 0;
+		memcpy(old_stack_types, ctx->func_ctx.stack_types, ctx->func_ctx.stack_size);
 	}
 
 	rsp_stack_mov_rsp();
 	ast_t ast = astid(is_proc ? decl_ast->proc_stmt.body : decl_ast->func_stmt.body);
 	compile_block(ctx, ast);
 
-	const size_t ret_types_count = vec_size(decl_ast->func_stmt.ret_types);
+	const value_kind_t *ret_types = is_proc ?
+		NULL : decl_ast->func_stmt.ret_types;
+
+	const size_t ret_types_count = is_proc ?
+		0: vec_size(ret_types);
+
 	for (size_t i = 0; i < ret_types_count; ++i) {
 		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
 	}
 
 	rsp_stack_mov_to_rsp();
-	wtprintln("add rsp, %u", vec_size(decl_ast->func_stmt.args) * WORD_SIZE);
+	wtprintln("add rsp, %u", vec_size(is_proc ?
+																		decl_ast->proc_stmt.args
+																		: decl_ast->func_stmt.args) * WORD_SIZE);
 
 	for (size_t i = 0; i < ret_types_count; ++i) {
 		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
 	}
 
 	if (is_proc) {
+		ctx->proc_ctx.stack_size = old_stack_size;
+		memcpy(ctx->proc_ctx.stack_types, old_stack_types, old_stack_size);
 		ctx->proc_ctx.stmt = (const proc_stmt_t *) old_stmt;
 	} else {
+		ctx->func_ctx.stack_size = old_stack_size;
+		memcpy(ctx->func_ctx.stack_types, old_stack_types, old_stack_size);
 		ctx->func_ctx.stmt = (const func_stmt_t *) old_stmt;
 	}
 }

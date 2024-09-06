@@ -20,11 +20,11 @@ end
 func hel int
   int a
 do
-  a 69 0
+  a 69 0 a . 0
 end
 
 func main int
 do
-  420 hel! .
+  420 . hel! .
   0
 end

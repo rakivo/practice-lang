@@ -1,0 +1,10 @@
+inline proc sum
+  int a
+  int b
+do
+  a b + .
+end
+
+func main int do
+  1 2 sum! 0
+end
