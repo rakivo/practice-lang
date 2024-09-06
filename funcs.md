@@ -32,4 +32,4 @@ do
   b a
 end
 ```
-> If you wanna return more than one value from your function, you just add an additional type after the first one, which is mandatory for functions. If you wanna have a function that returns `void`, you can read this topic: [`Procedures in the prac Programming Language`]((https://github.com/rakivo/practice-lang/procs.md)).
+> If you wanna return more than one value from your function, you just add an additional type after the first one, which is mandatory for functions, as I already said. If you wanna have a function that returns `void`, you can read this topic: [`Procedures in the prac Programming Language`](https://github.com/rakivo/practice-lang/procs.md).
