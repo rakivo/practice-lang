@@ -12,6 +12,7 @@
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
 
+#include <time.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -31,6 +32,13 @@ main_deinit(void)
 	shfree(var_map);
 	shfree(const_map);
 	memory_release();
+}
+
+UNUSED
+void print_elapsed(clock_t start, clock_t end, const char *what)
+{
+	double elapsed = (double) (end - start) / CLOCKS_PER_SEC;
+	printf("%s took: %.0fus\n", what, elapsed * 1000000);
 }
 
 int
@@ -63,14 +71,30 @@ main(int argc, const char *argv[])
 	fclose(file);
 
 	Lexer lexer = new_lexer(file_.file_id, lines, lines_count);
+
+#ifdef DEBUG
+	const clock_t lex_start = clock();
+#endif
 	tokens = lexer_lex(&lexer);
+#ifdef DEBUG
+	const clock_t lex_end = clock();
+	dbg_time(lex, "lexing");
+#endif
 
 #ifdef PRINT_TOKENS
 	for (size_t i = 0; i < lexer.tokens_count; ++i) printf("%s\n", token_to_str(&tokens[i]));
 #endif
 
 	Parser parser = new_parser(tokens, lexer.tokens_count);
+
+#ifdef DEBUG
+	const clock_t parser_start = clock();
+#endif
 	parser_parse(&parser);
+#ifdef DEBUG
+	const clock_t parser_end = clock();
+	dbg_time(parser, "parsing");
+#endif
 
 #ifdef PRINT_ASTS
 	for (ast_id_t i = 0; i < asts_len; ++i) print_ast(&astid(i));
@@ -83,7 +107,7 @@ main(int argc, const char *argv[])
 		report_error("%s:0:0: no main at top level function found", file_path);
 	}
 
-	if (astid(main_function).func_stmt.ret_type != VALUE_KIND_INTEGER
+	if (*astid(main_function).func_stmt.ret_types != VALUE_KIND_INTEGER
 	|| vec_size(astid(main_function).func_stmt.args) != 0)
 	{
 		report_error("%s error: main function has wrong signature. \n"
@@ -91,8 +115,11 @@ main(int argc, const char *argv[])
 								 loc_to_str(&locid(astid(main_function).loc_id)));
 	}
 
-	Consteval consteval = new_consteval(&const_map);
 	ast_t ast = astid(0);
+	Consteval consteval = new_consteval(&const_map);
+#ifdef DEBUG
+	const clock_t consteval_start = clock();
+#endif
 	while (ast.next && ast.next <= ASTS_SIZE) {
 		if (ast.ast_kind == AST_CONST) {
 			const consteval_value_t value = consteval_eval(&consteval, &ast, false);
@@ -104,20 +131,44 @@ main(int argc, const char *argv[])
 		ast = astid(ast.next);
 	}
 
+#ifdef DEBUG
+	const clock_t consteval_end = clock();
+	dbg_time(consteval, "constevaling");
+#endif
+
 	Compiler compiler = new_compiler(main_function, const_map, var_map);
+
+#ifdef DEBUG
+	const clock_t compile_start = clock();
+#endif
 	compiler_compile(&compiler);
+
+#ifdef DEBUG
+	const clock_t compile_end = clock();
+	dbg_time(compile, "compiling");
+	print_elapsed(lex_start, compile_end, "everything");
+#endif
+
+#ifdef DEBUG
+	const clock_t compile_asm_start = clock();
+#endif
 
 	Nob_Cmd cmd = {0};
 	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS);
-	nob_cmd_run_sync(cmd, false);
+	nob_cmd_run_sync(cmd, dbg_echo);
 	cmd.count = 0;
 
 #ifndef DEBUG
-	nob_rename(EXECUTABLE_OUTPUT".tmp", OBJECT_OUTPUT, false);
+	nob_rename(EXECUTABLE_OUTPUT".tmp", OBJECT_OUTPUT, dbg_echo);
 #endif
 
 	nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
-	nob_cmd_run_sync(cmd, false);
+	nob_cmd_run_sync(cmd, dbg_echo);
+
+#ifdef DEBUG
+	const clock_t compile_asm_end = clock();
+	dbg_time(compile_asm, "compiling asm");
+#endif
 
 ret:
 	nob_cmd_free(cmd);

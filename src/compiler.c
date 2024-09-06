@@ -510,7 +510,9 @@ compile_loop:
 				wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
 			} else {
 				wtprintln("call __%s__", decl_ast->func_stmt.name->str);
-				stack_add_type(ctx, decl_ast->func_stmt.ret_type);
+				for (size_t i = vec_size(decl_ast->func_stmt.ret_types); i > 0; --i) {
+					stack_add_type(ctx, decl_ast->func_stmt.ret_types[i - 1]);
+				}
 			}
 
 			shput(values_map, ast->call.str, value_);
@@ -945,25 +947,50 @@ static void compile_func(Compiler *ctx, const ast_t *ast)
 		last_ast_in_body = compile_block(ctx, func_ast);
 	}
 
-	if (ctx->func_ctx.stack_size < 1) {
-		report_error("%s error: expected to have element on the stack "
-								 "to perform implicit return from function, but don't have any",
-								 loc_to_str(&locid(astid(last_ast_in_body).loc_id)));
-	} else if (*get_type_from_end(ctx, 0) != ast->func_stmt.ret_type) {
-		report_error("%s error: expected last element on the stack to be: `%s`, but got: `%s`",
+	const size_t ret_types_count = vec_size(ast->func_stmt.ret_types);
+	if (ctx->func_ctx.stack_size < ret_types_count) {
+		report_error("%s error: expected to have %zu %s on the stack "
+								 "to perform implicit return function, but got only %zu",
 								 loc_to_str(&locid(astid(last_ast_in_body).loc_id)),
-								 value_kind_to_str_pretty(ast->func_stmt.ret_type),
-								 value_kind_to_str_pretty(*get_type_from_end(ctx, 0)));
+								 ret_types_count,
+								 ret_types_count == 1 ? "element" : "elements",
+								 ctx->func_ctx.stack_size);
 	}
 
-	wtln("pop rdi");
+	for (size_t i = 0; i < ret_types_count; ++i) {
+		value_kind_t expected = ast->func_stmt.ret_types[i];
+		value_kind_t got = *get_type_from_end(ctx, ret_types_count - 1 - i);
+		if (expected != got) {
+			if (i == 0) {
+				report_error("%s error: expected last element on the stack to be `%s`, but got: `%s`",
+								loc_to_str(&locid(astid(last_ast_in_body).loc_id)),
+								value_kind_to_str_pretty(got),
+								value_kind_to_str_pretty(expected));
+			} else {
+				report_error("%s error: expected %zunth element from the end of the stack to be `%s`, but got: `%s`",
+										 loc_to_str(&locid(astid(last_ast_in_body).loc_id)),
+										 i,
+										 value_kind_to_str_pretty(got),
+										 value_kind_to_str_pretty(expected));
+			}
+		}
+	}
+
+	for (size_t i = 0; i < ret_types_count; ++i) {
+		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+	}
+
 	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name->str)) {
-		wtln("mov [ret_code], rdi");
+		wtprintln("mov [ret_code], %s", X86_64_LINUX_CONVENTION_REGISTERS[ret_types_count - 1]);
 	}
 
 	rsp_stack_mov_to_rsp();
 	wtln("pop rax");
-	wtln("push rdi");
+
+	for (size_t i = 0; i < ret_types_count; ++i) {
+		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+	}
+
 	wtln("push rax");
 	wtln("ret");
 

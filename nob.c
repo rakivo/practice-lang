@@ -1,19 +1,23 @@
 #define NOB_IMPLEMENTATION
 #include "src/nob.h"
+#include "src/common.h"
 
 #include <string.h>
 #include <limits.h>
 
 // #define DEBUG
 
+#define ALWAYS_MAKE_FLAG "-B"
+#define RELEASE_FLAG "release"
+
 #ifndef CC
 	#define CC "clang"
 #endif
 
 #ifndef DEBUG
-	#define CFLAGS "-std=c11", "-O0", "-g"
+	#define CFLAGS "-std=c11", "-g"
 #else
-	#define CFLAGS "-std=c11", "-O0", "-g", "-DDEBUG"
+	#define CFLAGS "-std=c11", "-g", "-DDEBUG"
 #endif
 
 #define C_EXT "c"
@@ -30,11 +34,26 @@
 	for (size_t i = 0; i < what.count; ++i) free(what.items[i]); \
 } while (0)
 
+static bool always_make = false;
+static bool release_mode = false;
+
+void
+parse_flags(int argc, const char *argv[])
+{
+	for (size_t i = 1; i < argc; ++i) {
+		if (0 == strcmp(argv[i], ALWAYS_MAKE_FLAG)) {
+			always_make = true;
+		} else if (0 == strcmp(argv[i], RELEASE_FLAG)) {
+			release_mode = true;
+		}
+	}
+}
+
 int
-main(int argc, char *argv[])
+main(int argc, const char *argv[])
 {
 	NOB_GO_REBUILD_URSELF(argc, argv);
-	const char *program = nob_shift_args(&argc, &argv);
+	parse_flags(argc, argv);
 
 	Nob_File_Paths src_files_ = {0};
 	nob_read_entire_dir(SRC_DIR, &src_files_);
@@ -104,9 +123,16 @@ main(int argc, char *argv[])
 	// Build all the object files
 	Nob_Cmd cmd = {0};
 	for (size_t i = 0; i < obj_files.count; ++i) {
-		if (nob_needs_rebuild(obj_files.items[i], (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
+		if (always_make
+		|| nob_needs_rebuild(obj_files.items[i],
+												(const char **) src_files_prefixed.items, src_files_prefixed.count))
+		{
 			cmd.count = 0;
-			nob_cmd_append(&cmd, CC, CFLAGS, WFLAGS, "-c", c_files.items[i], "-o", obj_files.items[i]);
+			if (release_mode) {
+				nob_cmd_append(&cmd, CC, CFLAGS, "-O3", WFLAGS, "-c", c_files.items[i], "-o", obj_files.items[i]);
+			} else {
+				nob_cmd_append(&cmd, CC, CFLAGS, "-O0", WFLAGS, "-c", c_files.items[i], "-o", obj_files.items[i]);
+			}
 #ifdef DEBUG
 			nob_cmd_run_sync(cmd, true);
 #else
@@ -119,9 +145,16 @@ main(int argc, char *argv[])
 	nob_da_append(&src_files_prefixed, ROOT_FILE);
 
 	// Build `build/pracc` executable
-	if (nob_needs_rebuild(BIN_FILE, (const char **) src_files_prefixed.items, src_files_prefixed.count)) {
+	if (always_make
+	|| nob_needs_rebuild(BIN_FILE,
+											 (const char **) src_files_prefixed.items, src_files_prefixed.count))
+	{
 		cmd.count = 0;
-		nob_cmd_append(&cmd, CC, "-o", BIN_FILE, CFLAGS, WFLAGS);
+		if (release_mode) {
+			nob_cmd_append(&cmd, CC, "-o", BIN_FILE, CFLAGS, "-O3", WFLAGS);
+		} else {
+			nob_cmd_append(&cmd, CC, "-o", BIN_FILE, CFLAGS, "-O0", WFLAGS);
+		}
 		for (size_t i = 0; i < obj_files.count; ++i) {
 			nob_cmd_append(&cmd, obj_files.items[i]);
 		}

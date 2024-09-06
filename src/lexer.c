@@ -2,6 +2,7 @@
 #include "lexer.h"
 #include "common.h"
 
+#include <time.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -175,11 +176,25 @@ new_token(loc_t loc, token_kind_t token_kind, const char *str)
 tokens_t
 lexer_lex(Lexer *lexer)
 {
-	tokens_t ret = (tokens_t) malloc(sizeof(token_t) * TOKENS_CAP);
+#ifdef DEBUG
+	clock_t alloc_start = clock();
+#endif
+	tokens_t ret = (tokens_t) malloc(sizeof(token_t)
+																	 * MAXIMUM_TOKENS_AMOUNT_PER_LINE
+																	 * lexer->lines_count);
+#ifdef DEBUG
+	clock_t alloc_end = clock();
+	dbg_time(alloc, "allocation in `lexer_lex()`");
+	clock_t lexing_lines_start = clock();
+#endif
 	for (size_t i = 0; i < lexer->lines_count; ++i) {
 		lexer_lex_line(lexer, lexer->lines[i], &ret);
 		lexer->row++;
 	}
+#ifdef DEBUG
+	clock_t lexing_lines_end = clock();
+	dbg_time(lexing_lines, "lexing_lines in `lexer_lex()`");
+#endif
 	return ret;
 }
 

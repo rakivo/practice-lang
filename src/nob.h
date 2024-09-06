@@ -273,7 +273,7 @@ int nob_file_exists(const char *file_path);
             nob_sb_append_cstr(&sb, ".old");                                                 \
             nob_sb_append_null(&sb);                                                         \
                                                                                              \
-            if (!nob_rename(binary_path, sb.items), true) exit(1);						\
+            if (!nob_rename(binary_path, sb.items, true)) exit(1);						\
             Nob_Cmd rebuild = {0};                                                           \
             nob_cmd_append(&rebuild, NOB_REBUILD_URSELF(binary_path, source_path));          \
             bool rebuild_succeeded = nob_cmd_run_sync(rebuild, true);                        \

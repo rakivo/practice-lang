@@ -88,9 +88,9 @@ typedef struct {
 
 typedef struct {
 	const token_t *name;
-	arg_t *args;
 	ast_id_t body;
-	value_kind_t ret_type;
+	arg_t *args;
+	value_kind_t *ret_types;
 } func_stmt_t;
 
 typedef struct {

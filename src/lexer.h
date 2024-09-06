@@ -12,6 +12,7 @@
 #define LINES_CAP (1024 * 500)
 #define TOKENS_LINE_CAP 1024
 #define TOKENS_CAP (1024 * 500)
+#define MAXIMUM_TOKENS_AMOUNT_PER_LINE 50
 
 // NOTE: If you added a new keyword, update `KEYWORDS` array at the top of the `lexer.c` file.
 typedef enum {

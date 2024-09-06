@@ -1,6 +1,7 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include <time.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -9,6 +10,16 @@
 // #define PRINT_ASTS
 // #define PRINT_STACK
 // #define MEM_PRINT 1
+
+#define DEBUG
+#ifdef DEBUG
+	#define dbg_echo 1
+#else
+	#define dbg_echo 0
+#endif
+
+#define dbg_time(prefix, what) \
+	print_elapsed(prefix##_start, prefix##_end, what)
 
 typedef int64_t i64;
 typedef int32_t i32;
@@ -152,5 +163,8 @@ void evprintf(const char *format, va_list list);
 void report_error_noexit(const char *func, const char *file, const size_t line, const char *format, ...);
 NORETURN void report_error_(const char *func, const char *file, const size_t line, const char *format, ...);
 NORETURN void error_exit(const char *format, ...) ;
+
+UNUSED
+void print_elapsed(clock_t start, clock_t end, const char *what);
 
 #endif // COMMON_H_

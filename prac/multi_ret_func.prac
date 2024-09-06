@@ -1,0 +1,11 @@
+func swap int int
+  int a
+  int b
+do
+  b a
+end
+
+func main int do
+  69 420 swap! . drop . drop
+  0
+end

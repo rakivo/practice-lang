@@ -217,7 +217,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_FUNC: {
-		// Skip `proc` keyword
+		// Skip `func` keyword
 		token_idx++;
 
 		if ((token_idx > parser->tc
@@ -231,19 +231,26 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		ast_t ast = make_ast(0, token->loc_id, ++next, AST_FUNC,
 			.func_stmt = {
 				.name = &parser->ts[token_idx++],
-				.args = NULL,
 				.body = -1,
-				.ret_type = VALUE_KIND_POISONED
+				.args = NULL,
+				.ret_types = NULL
 			}
 		);
 
 		const token_t ret_type_token = parser->ts[token_idx++];
-		const i32 ret_type_ = value_kind_try_from_str(ret_type_token.str);
+		i32 ret_type_ = value_kind_try_from_str(ret_type_token.str);
 		if (ret_type_ < 0) {
 			report_error("%s error: expected return type after `func` keyword, but got: %s", loc_to_str(&locid(ret_type_token.loc_id)), ret_type_token.str);
 		}
 
-		ast.func_stmt.ret_type = (value_kind_t) ret_type_;
+		vec_add(ast.func_stmt.ret_types, (value_kind_t) ret_type_);
+		while (token_idx + 1 < parser->tc
+		&& (ret_type_ = value_kind_try_from_str(parser->ts[token_idx].str))
+		&& (-1 != value_kind_try_from_str(parser->ts[token_idx + 1].str)))
+		{
+			vec_add(ast.func_stmt.ret_types, (value_kind_t) ret_type_);
+			token_idx++;
+		}
 
 		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx++];
@@ -266,13 +273,13 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
 			}
 
-			const arg_t proc_arg = {
+			const arg_t func_arg = {
 				.kind = kind,
 				.loc_id = token_.loc_id,
 				.name = parser->ts[token_idx++].str
 			};
 
-			vec_add(ast.proc_stmt.args, proc_arg);
+			vec_add(ast.func_stmt.args, func_arg);
 		}
 
 		bool done = false;
@@ -283,7 +290,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				done = true;
 				break;
 			} else if (token_count == 0) {
-				ast.proc_stmt.body = next;
+				ast.func_stmt.body = next;
 			}
 
 			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);

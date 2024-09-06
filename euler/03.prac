@@ -1,6 +1,8 @@
-var factor 2       end
+const NUMBER 600851475143 end
+
+var x       NUMBER end
+var factor  2      end
 var largest 0      end
-var x 600851475143 end
 
 func main int do
   x! while x! 1 > do

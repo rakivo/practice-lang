@@ -90,11 +90,14 @@ print_ast(const ast_t *ast)
 	case AST_FUNC: {
 		printf("%s\n", ast_kind_to_str(ast->ast_kind));
 		printf("name: %s\n", ast->func_stmt.name->str);
-		FOREACH(arg_t, proc_arg, ast->func_stmt.args) {
-			printf("arg: %s\n", arg_to_str(&proc_arg));
+		FOREACH(arg_t, func_arg, ast->func_stmt.args) {
+			printf("arg: %s\n", arg_to_str(&func_arg));
 		}
 		printf("body: %d\n", ast->func_stmt.body);
-		printf("ret_type: %s\n", value_kind_to_str_pretty(ast->func_stmt.ret_type));
+		FOREACH(value_kind_t, func_ret_type, ast->func_stmt.ret_types) {
+			printf("ret_type: %s\n", value_kind_to_str_pretty(func_ret_type));
+		}
+
 	} break;
 
 	case AST_PROC: {
