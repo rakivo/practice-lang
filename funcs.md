@@ -21,3 +21,15 @@ end
 
 #### What about manipulations with the stack?
 > Basically, it's just the same as in procedures. Functions do not have access to the global stack, which basically means, that you can manipulate with the global stack only by accepting arguments and returning a value.
+
+#### Function that returns many values
+> I added this feature yesterday (2024-09-06), the syntax is so simple, just look at this function's signature:
+```
+func swap int int
+  int a
+  int b
+do
+  b a
+end
+```
+> If you wanna return more than one value from your function, you just add an additional type after the first one, which is mandatory for functions. If you wanna have a function that returns `void`, you can read this topic: [`Procedures in the prac Programming Language`]((https://github.com/rakivo/practice-lang/procs.md)).

@@ -111,7 +111,7 @@ main(int argc, const char *argv[])
 	|| vec_size(astid(main_function).func_stmt.args) != 0)
 	{
 		report_error("%s error: main function has wrong signature. \n"
-								 "  NOTE: expected signature: func int do <...> end",
+								 "  note: expected signature: func int do <...> end",
 								 loc_to_str(&locid(astid(main_function).loc_id)));
 	}
 

@@ -17,6 +17,10 @@ do
   x x *
 end
 
+func hel int x
+do
+end
+
 func main int
 do
   "helo" hello!

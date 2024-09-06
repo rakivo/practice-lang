@@ -262,8 +262,9 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			const i32 kind_ = value_kind_try_from_str(token_.str);
 			if (kind_ < 0) {
 				eprintf("%s error: invalid type: %s\n", loc_to_str(&locid(token_.loc_id)), token_.str);
-				report_error("  NOTE: You might have forgot to specify return type of the function.\n"
-										 "    For example: 'func %s int <...> do <...> end'",
+				report_error("  note: You could've forgot to specify return type of the function.\n"
+										 "    For example: "
+										 "'func %s <return types...> <args...> do <body...> end'",
 										 ast.func_stmt.name->str);
 			}
 

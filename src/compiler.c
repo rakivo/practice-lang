@@ -397,7 +397,7 @@ compile_loop:
 							"should be equal to the amount of elements at the end of the statement\n",
 							loc_to_str(&locid(ast->loc_id)));
 
-			eprintf("  NOTE: expected size: %zu, but got: %zu. Perhaps, %s\n",
+			eprintf("  note: expected size: %zu, but got: %zu. Perhaps, %s\n",
 							start_stack_size,
 							end_stack_size,
 							end_stack_size > start_stack_size ?
@@ -491,7 +491,7 @@ compile_loop:
 								loc_to_str(&locid(ast->loc_id)),
 								ast->call.str);
 
-				report_error("  NOTE: expected amount of values on "
+				report_error("  note: expected amount of values on "
 										 "the stack: %zu, the actual stack size: %zu",
 										 args_count_required, stack_size);
 			}
@@ -928,7 +928,8 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 	ctx->proc_ctx.called_funcptr = false;
 }
 
-static void compile_func(Compiler *ctx, const ast_t *ast)
+static void
+compile_func(Compiler *ctx, const ast_t *ast)
 {
 #ifdef DEBUG
 	FOREACH(arg_t, arg, ast->func_stmt.args) {
