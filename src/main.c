@@ -85,7 +85,7 @@ typedef struct {
 	size_t tokens_count;
 } ttc_t;
 
-static ttc_t
+static size_t
 lex_step(const char *file_path)
 {
 	const file_t file = new_file_t(new_str_t(file_path));
@@ -110,7 +110,7 @@ lex_step(const char *file_path)
 	set_time;
 #endif
 
-	const tokens_t tokens = lexer_lex(&lexer);
+	tokens = lexer_lex(&lexer);
 
 #ifdef PRINT_TOKENS
 	for (size_t i = 0; i < lexer.tokens_count; ++i) printf("%s\n", token_to_str(&tokens[i]));
@@ -120,10 +120,7 @@ lex_step(const char *file_path)
 	dbg_time("lexing");
 #endif
 
-	return (ttc_t) {
-		.tokens = tokens,
-		.tokens_count = lexer.tokens_count
-	};
+	return lexer.tokens_count;
 }
 
 static void
@@ -206,8 +203,8 @@ main(int argc, const char *argv[])
 
 	const char *file_path = argv[1];
 	memory_init(3);
-	const ttc_t ttc = lex_step(file_path);
-	parse_step(ttc.tokens, ttc.tokens_count);
+	const size_t tokens_count = lex_step(file_path);
+	parse_step(tokens, tokens_count);
 	if (asts_len == 0) goto ret;
 	check_for_main_function(file_path);
 	consteval_step();
