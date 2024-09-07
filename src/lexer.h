@@ -12,7 +12,7 @@
 #define LINES_CAP (1024 * 500)
 #define TOKENS_LINE_CAP 1024
 #define TOKENS_CAP (1024 * 500)
-#define MAXIMUM_TOKENS_AMOUNT_PER_LINE 50
+#define MAXIMUM_TOKENS_AMOUNT_PER_LINE 100
 
 // NOTE: If you added a new keyword, update `KEYWORDS` array at the top of the `lexer.c` file.
 typedef enum {
@@ -140,7 +140,6 @@ read_entire_file(const char *file_path, const loc_t *report_loc);
 #define LINES_POOL_CAP 1024
 extern size_t lines_pool_count;
 extern lines_t lines_pool[LINES_POOL_CAP];
-typedef u32 lines_id_t;
 
 #define last_lines (lines_pool[lines_pool_count - 1])
 #define append_lines(lines_) (lines_pool[lines_pool_count++] = lines_)
@@ -148,7 +147,6 @@ typedef u32 lines_id_t;
 #define TOKENS_POOL_CAP 1024
 extern size_t tokens_pool_count;
 extern tokens_t tokens_pool[TOKENS_POOL_CAP];
-typedef u32 tokens_id_t;
 
 #define last_tokens (tokens_pool[tokens_pool_count - 1])
 #define append_tokens(tokens_) (tokens_pool[tokens_pool_count++] = tokens_)
