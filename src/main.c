@@ -20,18 +20,18 @@
 // global variable to time using `set_time` and `dbg_time` macros from `common.h`
 clock_t _time = 0;
 
-static lines_t lines = NULL;
-static size_t lines_count = 0;
-static tokens_t tokens = NULL;
 static var_map_t *var_map = NULL;
 static const_map_t *const_map = NULL;
 
 void
 main_deinit(void)
 {
-	for (size_t i = 0; i < lines_count; ++i) free(lines[i].items);
-	free(lines);
-	free(tokens);
+	for (size_t i = 0; i < tokens_pool_count; ++i) {
+		free(tokens_pool[i].tokens);
+	}
+	for (size_t i = 0; i < lines_pool_count; ++i) {
+		free(lines_pool[i].lines);
+	}
 	shfree(var_map);
 	shfree(const_map);
 	memory_release();
@@ -80,53 +80,33 @@ consteval_step(void)
 #endif
 }
 
-typedef struct {
-	tokens_t tokens;
-	size_t tokens_count;
-} ttc_t;
-
-static size_t
+static tokens_t
 lex_step(const char *file_path)
 {
-	const file_t file = new_file_t(new_str_t(file_path));
-	append_file(file);
-
-	FILE *stream = fopen(file_path, "r");
-	if (stream == NULL) {
-		eprintf("error: failed to open file: %s\n", file_path);
-		exit(EXIT_FAILURE);
-	}
-
-	char line[LINE_CAP];
-	lines = (lines_t) malloc(sizeof(lines_t *) * LINES_CAP);
-	while (fgets(line, sizeof(line), stream) != NULL) {
-		lines[lines_count++] = split(line, ' ');
-	}
-
-	fclose(stream);
-	Lexer lexer = new_lexer(file.file_id, lines, lines_count);
+	const file_t file = read_entire_file(file_path, NULL);
+	Lexer lexer = new_lexer(file.file_id, last_lines);
 
 #ifdef DEBUG
 	set_time;
 #endif
 
-	tokens = lexer_lex(&lexer);
+	tokens_t tokens = lexer_lex(&lexer);
 
 #ifdef PRINT_TOKENS
-	for (size_t i = 0; i < lexer.tokens_count; ++i) printf("%s\n", token_to_str(&tokens[i]));
+	for (size_t i = 0; i < lexer.tokens.count; ++i) printf("%s\n", token_to_str(&tokens.tokens[i]));
 #endif
 
 #ifdef DEBUG
 	dbg_time("lexing");
 #endif
 
-	return lexer.tokens_count;
+	return tokens;
 }
 
 static void
-parse_step(const tokens_t tokens, size_t tokens_count)
+parse_step(const tokens_t tokens)
 {
-	Parser parser = new_parser(tokens, tokens_count);
+	Parser parser = new_parser(tokens);
 
 #ifdef DEBUG
 	set_time;
@@ -203,8 +183,8 @@ main(int argc, const char *argv[])
 
 	const char *file_path = argv[1];
 	memory_init(3);
-	const size_t tokens_count = lex_step(file_path);
-	parse_step(tokens, tokens_count);
+	const tokens_t tokens = lex_step(file_path);
+	parse_step(tokens);
 	if (asts_len == 0) goto ret;
 	check_for_main_function(file_path);
 	consteval_step();

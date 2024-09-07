@@ -96,25 +96,30 @@ typedef struct {
 
 typedef ss_t *sss_t;
 typedef ss_t **sss2D_t;
-typedef token_t *tokens_t;
+
+typedef struct {
+	size_t count;
+	token_t *tokens;
+} tokens_t;
 
 typedef struct {
 	sss_t items;
 	size_t count;
 } line_t;
 
-typedef line_t *lines_t;
+typedef struct {
+	size_t count;
+	line_t *lines;
+} lines_t;
 
 typedef struct {
 	u32 row;
 	lines_t lines;
 	file_id_t file_id;
-	size_t lines_count;
-	size_t tokens_count;
 } Lexer;
 
 Lexer
-new_lexer(file_id_t file_id, lines_t lines, size_t lines_count);
+new_lexer(file_id_t file_id, lines_t lines);
 
 tokens_t
 lexer_lex(Lexer *lexer);
@@ -127,6 +132,26 @@ type_token(const char *str, const loc_t *loc);
 
 void
 lexer_lex_line(Lexer *lexer, line_t line, tokens_t *ret);
+
+// read entire file into the global lines pool
+file_t
+read_entire_file(const char *file_path, const loc_t *report_loc);
+
+#define LINES_POOL_CAP 1024
+extern size_t lines_pool_count;
+extern lines_t lines_pool[LINES_POOL_CAP];
+typedef u32 lines_id_t;
+
+#define last_lines (lines_pool[lines_pool_count - 1])
+#define append_lines(lines_) (lines_pool[lines_pool_count++] = lines_)
+
+#define TOKENS_POOL_CAP 1024
+extern size_t tokens_pool_count;
+extern tokens_t tokens_pool[TOKENS_POOL_CAP];
+typedef u32 tokens_id_t;
+
+#define last_tokens (tokens_pool[tokens_pool_count - 1])
+#define append_tokens(tokens_) (tokens_pool[tokens_pool_count++] = tokens_)
 
 #define LOCS_CAP (1024 * 500)
 extern loc_id_t LOCS_SIZE;

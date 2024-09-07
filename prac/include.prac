@@ -1,0 +1,5 @@
+include "prac/func.prac"
+
+proc bar do
+  "hello world\n" .
+end

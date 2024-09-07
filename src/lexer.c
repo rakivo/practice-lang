@@ -1,3 +1,4 @@
+#include "file.h"
 #include "lib.h"
 #include "lexer.h"
 #include "common.h"
@@ -7,6 +8,12 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+
+size_t lines_pool_count = 0;
+lines_t lines_pool[LINES_POOL_CAP];
+
+size_t tokens_pool_count;
+tokens_t tokens_pool[TOKENS_POOL_CAP];
 
 DECLARE_STATIC(loc, LOC);
 
@@ -157,14 +164,12 @@ token_to_str(const token_t *token)
 }
 
 Lexer
-new_lexer(file_id_t file_id, lines_t lines, size_t lines_count)
+new_lexer(file_id_t file_id, lines_t lines)
 {
 	return (Lexer) {
 		.row = 0,
 		.lines = lines,
-		.tokens_count = 0,
 		.file_id = file_id,
-		.lines_count = lines_count,
 	};
 }
 
@@ -185,21 +190,26 @@ lexer_lex(Lexer *lexer)
 #ifdef DEBUG
 	set_time;
 #endif
-	tokens_t ret = (tokens_t) malloc(sizeof(token_t)
-																	 * MAXIMUM_TOKENS_AMOUNT_PER_LINE
-																	 * lexer->lines_count);
+	tokens_t tokens = {
+		.tokens = (token_t *) malloc(sizeof(token_t)
+																 * MAXIMUM_TOKENS_AMOUNT_PER_LINE
+																 * lexer->lines.count),
+		.count = 0
+	};
+
 #ifdef DEBUG
 	dbg_time("allocation in `lexer_lex()`");
 	set_time;
 #endif
-	for (size_t i = 0; i < lexer->lines_count; ++i) {
-		lexer_lex_line(lexer, lexer->lines[i], &ret);
+	for (size_t i = 0; i < lexer->lines.count; ++i) {
+		lexer_lex_line(lexer, lexer->lines.lines[i], &tokens);
 		lexer->row++;
 	}
 #ifdef DEBUG
 	dbg_time("lexing_lines in `lexer_lex()`");
 #endif
-	return ret;
+	append_tokens(tokens);
+	return tokens;
 }
 
 INLINE i32
@@ -242,8 +252,88 @@ type_token(const char *str, const loc_t *loc)
 	report_error("%s error: unexpected literal: '%s'", loc_to_str(loc), str);
 }
 
+file_t
+read_entire_file(const char *file_path, const loc_t *report_loc)
+{
+	const file_t file = new_file_t(new_str_t(file_path));
+	append_file(file);
+
+	FILE *stream = fopen(file_path, "r");
+	if (stream == NULL) {
+		if (report_loc != NULL) {
+			eprintf("%s error: failed to open file: %s\n",
+							loc_to_str(report_loc),
+							file_path);
+		} else {
+			eprintf("error: failed to open file: %s\n", file_path);
+		}
+		exit(EXIT_FAILURE);
+	}
+
+	char line[LINE_CAP];
+	lines_t lines = {
+		.lines = (line_t *) malloc(sizeof(lines_t *) * LINES_CAP),
+		.count = 0
+	};
+
+	while (fgets(line, sizeof(line), stream) != NULL) {
+		lines.lines[lines.count++] = split(line, ' ');
+	}
+
+	append_lines(lines);
+	fclose(stream);
+	return file;
+}
+
+static void
+handle_include(Lexer *lexer, line_t line,
+							 const loc_t *loc_, tokens_t *tokens)
+{
+	const loc_t *loc = loc_;
+	if (line.count < 2) goto include_failed;
+
+	const ss_t ss = line.items[1];
+	const loc_t str_loc = (loc_t) {
+		.row = lexer->row,
+		.col = ss.col,
+		.file_id = lexer->file_id
+	};
+
+	loc = &str_loc;
+	const token_kind_t kind = type_token(ss.str, loc);
+	if (kind != TOKEN_STRING_LITERAL) goto include_failed;
+
+	if (ss.str[2] == '\0') {
+		report_error("%s error: `include` with an empty string literal after",
+								 loc_to_str(loc));
+	}
+
+	// Get file path from quotes
+	scratch_buffer_clear();
+	scratch_buffer_append(ss.str + 1);
+	scratch_buffer.len--;
+
+	const char *file_path = scratch_buffer_copy();
+	const file_t file = read_entire_file(file_path, loc);
+	append_file(file);
+
+	Lexer lexer_ = new_lexer(file.file_id, last_lines);
+	const tokens_t tokens_ = lexer_lex(&lexer_);
+
+	// Append new tokens right after the old ones
+	memcpy(tokens->tokens + sizeof(token_t) * tokens->count,
+				 tokens_.tokens, tokens_.count * sizeof(token_t));
+
+	tokens->count += tokens_.count;
+	return;
+
+include_failed:
+	report_error("%s error: expected string literal after `include` keyword",
+							 loc_to_str(loc));
+}
+
 void
-lexer_lex_line(Lexer *lexer, line_t line, tokens_t *ret)
+lexer_lex_line(Lexer *lexer, line_t line, tokens_t *tokens)
 {
 	for (size_t i = 0; i < line.count; ++i) {
 		const ss_t ss = line.items[i];
@@ -256,8 +346,19 @@ lexer_lex_line(Lexer *lexer, line_t line, tokens_t *ret)
 		};
 
 		const token_kind_t kind = type_token(ss.str, &loc);
+
+		if (kind == TOKEN_STRING_LITERAL && ss.str[strlen(ss.str) - 1] != '"') {
+			eprintf("%s error: no closing quote found bruv", loc_to_str(&loc));
+			report_error("note: only single line string literals are supported yet..", "");
+		}
+
+		if (kind == TOKEN_LITERAL && 0 == strcmp(ss.str, "include")) {
+			handle_include(lexer, line, &loc, tokens);
+			return;
+		}
+
 		token_t token = new_token(loc, kind, ss.str);
-		(*ret)[lexer->tokens_count++] = token;
+		tokens->tokens[tokens->count++] = token;
 	}
 }
 

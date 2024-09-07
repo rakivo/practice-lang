@@ -32,11 +32,10 @@ parse_int(const char *str)
 }
 
 Parser
-new_parser(const tokens_t ts, size_t tc)
+new_parser(const tokens_t ts)
 {
 	return (Parser) {
 		.ts = ts,
-		.tc = tc,
 	};
 }
 
@@ -46,8 +45,8 @@ static size_t token_idx = 0;
 void
 parser_parse(Parser *parser)
 {
-	while (token_idx < parser->tc) {
-		const ast_t ast = ast_token(parser, &parser->ts[token_idx], false);
+	while (token_idx < parser->ts.count) {
+		const ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], false);
 		append_ast(ast);
 		token_idx++;
 	}
@@ -67,23 +66,23 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `const` keyword
 		token_idx++;
 
-		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_END) {
+		if (token_idx > parser->ts.count || parser->ts.tokens[token_idx].kind == TOKEN_END) {
 			report_error("%s error: %s without a name",
 									 loc_to_str(&locid(token->loc_id)),
 									 token->kind == TOKEN_VAR ? "var" : "const");
 		}
 
-		if (parser->ts[token_idx].kind != TOKEN_LITERAL) {
+		if (parser->ts.tokens[token_idx].kind != TOKEN_LITERAL) {
 			report_error("%s error: expected name of the %s to be non-keyword `literal`, but got: `%s`",
-									 loc_to_str(&locid(parser->ts[token_idx].loc_id)),
-									 token_kind_to_str_pretty(parser->ts[token_idx].kind),
+									 loc_to_str(&locid(parser->ts.tokens[token_idx].loc_id)),
+									 token_kind_to_str_pretty(parser->ts.tokens[token_idx].kind),
 									 token->kind == TOKEN_VAR ? "variable" : "constant");
 		}
 
 		ast_t ast = make_ast(0, token->loc_id, ++next,
 												 token->kind == TOKEN_VAR ? AST_VAR : AST_CONST,
 			.const_stmt = {
-				.name = &parser->ts[token_idx++],
+				.name = &parser->ts.tokens[token_idx++],
 				.body = -1,
 				.constexpr = false,
 			}
@@ -91,8 +90,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		bool done = false;
 		size_t token_count = 0;
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
 				break;
@@ -104,10 +103,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				}
 			}
 
-			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], true);
 			token_idx++;
 
-			if (parser->ts[token_idx].kind == TOKEN_END) {
+			if (parser->ts.tokens[token_idx].kind == TOKEN_END) {
 				ast.next = -1;
 			}
 
@@ -132,18 +131,18 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 	} break;
 
 	case TOKEN_INLINE: {
-		if (token_idx + 1 >= parser->tc
-		|| (parser->ts[token_idx + 1].kind != TOKEN_PROC
-		 && parser->ts[token_idx + 1].kind != TOKEN_FUNC))
+		if (token_idx + 1 >= parser->ts.count
+		|| (parser->ts.tokens[token_idx + 1].kind != TOKEN_PROC
+		 && parser->ts.tokens[token_idx + 1].kind != TOKEN_FUNC))
 		{
 			report_error("%s error: expected `proc` or `func` after "
 									 "the inline keyword, but got %s",
 									 loc_to_str(&locid(token->loc_id)),
-									 token_idx + 1 >= parser->tc ? "<eof>" : parser->ts[token_idx + 1].str);
+									 token_idx + 1 >= parser->ts.count ? "<eof>" : parser->ts.tokens[token_idx + 1].str);
 		}
 
 		token_idx++;
-		ast_t ast = ast_token(parser, &parser->ts[token_idx], false);
+		ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], false);
 
 		if (ast.ast_kind == AST_PROC) {
 			ast.proc_stmt.inlin = true;
@@ -158,21 +157,25 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `proc` keyword
 		token_idx++;
 
-		if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
+		if ((token_idx > parser->ts.count
+			|| parser->ts.tokens[token_idx].kind != TOKEN_LITERAL)
+				|| (parser->ts.tokens[token_idx].kind == TOKEN_LITERAL
+					&& value_kind_try_from_str(parser->ts.tokens[token_idx].str) != -1))
+		{
 			report_error("%s error: proc without a name", loc_to_str(&locid(token->loc_id)));
 		}
 
 		ast_t ast = make_ast(0, token->loc_id, ++next, AST_PROC,
 			.proc_stmt = {
-				.name = &parser->ts[token_idx++],
+				.name = &parser->ts.tokens[token_idx++],
 				.args = NULL,
 				.body = -1,
 				.inlin = false
 			}
 		);
 
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx++];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx++];
 
 			if (token_.kind == TOKEN_DO) {
 				break;
@@ -185,14 +188,14 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 			const value_kind_t kind = (value_kind_t) kind_;
 
-			if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
+			if (token_idx > parser->ts.count || parser->ts.tokens[token_idx].kind == TOKEN_DO) {
 				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
 			}
 
 			const arg_t proc_arg = {
 				.kind = kind,
 				.loc_id = token_.loc_id,
-				.name = parser->ts[token_idx++].str
+				.name = parser->ts.tokens[token_idx++].str
 			};
 
 			vec_add(ast.proc_stmt.args, proc_arg);
@@ -200,8 +203,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		bool done = false;
 		size_t token_count = 0;
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
 				break;
@@ -209,10 +212,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.proc_stmt.body = next;
 			}
 
-			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], true);
 			token_idx++;
 
-			if (parser->ts[token_idx].kind == TOKEN_END
+			if (parser->ts.tokens[token_idx].kind == TOKEN_END
 			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
 			{
 				ast.next = -1;
@@ -244,17 +247,17 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		// Skip `func` keyword
 		token_idx++;
 
-		if ((token_idx > parser->tc
-			|| parser->ts[token_idx].kind != TOKEN_LITERAL)
-				|| (parser->ts[token_idx].kind == TOKEN_LITERAL
-					&& value_kind_try_from_str(parser->ts[token_idx].str) != -1))
+		if ((token_idx > parser->ts.count
+			|| parser->ts.tokens[token_idx].kind != TOKEN_LITERAL)
+				|| (parser->ts.tokens[token_idx].kind == TOKEN_LITERAL
+					&& value_kind_try_from_str(parser->ts.tokens[token_idx].str) != -1))
 		{
 			report_error("%s error: func without a name", loc_to_str(&locid(token->loc_id)));
 		}
 
 		ast_t ast = make_ast(0, token->loc_id, ++next, AST_FUNC,
 			.func_stmt = {
-				.name = &parser->ts[token_idx++],
+				.name = &parser->ts.tokens[token_idx++],
 				.body = -1,
 				.args = NULL,
 				.inlin = false,
@@ -262,31 +265,31 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			}
 		);
 
-		const token_t ret_type_token = parser->ts[token_idx++];
+		const token_t ret_type_token = parser->ts.tokens[token_idx++];
 		i32 ret_type_ = value_kind_try_from_str(ret_type_token.str);
 		if (ret_type_ < 0) {
 			report_error("%s error: expected return type after `func` keyword, but got: %s", loc_to_str(&locid(ret_type_token.loc_id)), ret_type_token.str);
 		}
 
 		vec_add(ast.func_stmt.ret_types, (value_kind_t) ret_type_);
-		while (token_idx + 1 < parser->tc
-		&& (ret_type_ = value_kind_try_from_str(parser->ts[token_idx].str))
-		&& (-1 != value_kind_try_from_str(parser->ts[token_idx + 1].str)))
+		while (token_idx + 1 < parser->ts.count
+		&& (ret_type_ = value_kind_try_from_str(parser->ts.tokens[token_idx].str))
+		&& (-1 != value_kind_try_from_str(parser->ts.tokens[token_idx + 1].str)))
 		{
 			vec_add(ast.func_stmt.ret_types, (value_kind_t) ret_type_);
 			token_idx++;
 		}
 
-		if ((ret_type_ = value_kind_try_from_str(parser->ts[token_idx + 1].str))
-		&&  token_idx + 2 < parser->tc
-		&&  parser->ts[token_idx + 1].kind == TOKEN_DO)
+		if ((ret_type_ = value_kind_try_from_str(parser->ts.tokens[token_idx + 1].str))
+		&&  token_idx + 2 < parser->ts.count
+		&&  parser->ts.tokens[token_idx + 1].kind == TOKEN_DO)
 		{
 			vec_add(ast.func_stmt.ret_types, (value_kind_t) ret_type_);
 			token_idx++;
 		}
 
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx++];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx++];
 
 			if (token_.kind == TOKEN_DO) {
 				break;
@@ -305,7 +308,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			const arg_t func_arg = {
 				.kind = kind,
 				.loc_id = token_.loc_id,
-				.name = parser->ts[token_idx++].str
+				.name = parser->ts.tokens[token_idx++].str
 			};
 
 			vec_add(ast.func_stmt.args, func_arg);
@@ -313,8 +316,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		bool done = false;
 		size_t token_count = 0;
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
 				break;
@@ -322,10 +325,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.func_stmt.body = next;
 			}
 
-			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], true);
 			token_idx++;
 
-			if (parser->ts[token_idx].kind == TOKEN_END
+			if (parser->ts.tokens[token_idx].kind == TOKEN_END
 			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
 			{
 				ast.next = -1;
@@ -376,8 +379,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		size_t token_count = 0;
 		size_t start = token_idx;
 
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx];
 			if (token_.kind == TOKEN_DO) {
 				if (token_idx > start) {
 					cond_is_not_empty = true;
@@ -388,7 +391,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.while_stmt.cond = next;
 			}
 
-			const ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			const ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], true);
 			append_ast(ast);
 			token_idx++;
 			token_count++;
@@ -401,8 +404,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		token_count = 0;
 
 		bool done = false;
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
 				break;
@@ -410,10 +413,10 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.while_stmt.body = next;
 			}
 
-			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], true);
 			token_idx++;
 
-			if (parser->ts[token_idx].kind == TOKEN_END
+			if (parser->ts.tokens[token_idx].kind == TOKEN_END
 			&& (ast.ast_kind == AST_IF || ast.ast_kind == AST_WHILE))
 			{
 				ast.next = -1;
@@ -460,8 +463,8 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		bool done = false;
 		bool is_else = false;
 		size_t token_count = 0;
-		while (token_idx < parser->tc) {
-			const token_t token_ = parser->ts[token_idx];
+		while (token_idx < parser->ts.count) {
+			const token_t token_ = parser->ts.tokens[token_idx];
 			if (token_.kind == TOKEN_END) {
 				done = true;
 				break;
@@ -479,7 +482,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 				ast.if_stmt.then_body = next;
 			}
 
-			ast_t ast = ast_token(parser, &parser->ts[token_idx], true);
+			ast_t ast = ast_token(parser, &parser->ts.tokens[token_idx], true);
 
 			if (token_.kind != TOKEN_ELSE) token_idx++;
 			append_ast(ast);
@@ -490,7 +493,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
 		}
 
-		if (token_idx + 1 < parser->tc && parser->ts[token_idx + 1].kind == TOKEN_END) {
+		if (token_idx + 1 < parser->ts.count && parser->ts.tokens[token_idx + 1].kind == TOKEN_END) {
 			ast.next = -1;
 		} else if (last_ast.next > 0) {
 			ast.next = last_ast.next;

@@ -181,6 +181,38 @@ ast_kind_to_str(const ast_kind_t ast_kind)
 	}
 }
 
+const char *
+ast_kind_to_str_pretty(const ast_kind_t ast_kind)
+{
+	switch (ast_kind) {
+	case AST_CALL:			return "call";
+	case AST_BNOT:			return "bnot";
+	case AST_WRITE:			return "!";
+	case AST_VAR:				return "var";
+	case AST_BOR:				return "bor";
+	case AST_MOD:				return "%";
+	case AST_SYSCALL:		return "syscall";
+	case AST_FUNC:			return "func";
+	case AST_DUP:				return "dup";
+	case AST_LITERAL:		return "literal";
+	case AST_PROC:			return "proc";
+	case AST_DROP:			return "drop";
+	case AST_IF:				return "if";
+	case AST_POISONED:	return "poisoned";
+	case AST_WHILE:			return "while";
+	case AST_PUSH:			return "push";
+	case AST_PLUS:			return "+";
+	case AST_DIV:				return "/";
+	case AST_MUL:				return "*";
+	case AST_MINUS:			return "-";
+	case AST_DOT:				return ".";
+	case AST_EQUAL:			return "=";
+	case AST_LESS:			return "<";
+	case AST_GREATER:		return ">";
+	case AST_CONST:			return "const";
+	}
+}
+
 void
 main_function_check(bool at_top_level, ast_t ast)
 {
@@ -189,6 +221,40 @@ main_function_check(bool at_top_level, ast_t ast)
 	{
 		main_function = ast.ast_id;
 		return;
+	} else {
+		switch (ast.ast_kind) {
+		case AST_FUNC: break;
+		case AST_PROC: break;
+		case AST_VAR: break;
+		case AST_CONST: break;
+
+
+		case AST_POISONED:
+		case AST_IF:
+		case AST_WHILE:
+		case AST_DOT:
+		case AST_DUP:
+		case AST_BNOT:
+		case AST_BOR:
+		case AST_MOD:
+		case AST_PUSH:
+		case AST_MUL:
+		case AST_DIV:
+		case AST_MINUS:
+		case AST_PLUS:
+		case AST_LESS:
+		case AST_EQUAL:
+		case AST_CALL:
+		case AST_WRITE:
+		case AST_DROP:
+		case AST_GREATER:
+		case AST_SYSCALL:
+		case AST_LITERAL: {
+			report_error("%s error: no %ss are allowed at the top level",
+									 loc_to_str(&locid(ast.loc_id)),
+									 ast_kind_to_str_pretty(ast.ast_kind));
+		} break;
+		}
 	}
 
 	if (ast.next < 0 || ast.ast_kind == AST_POISONED) return;
