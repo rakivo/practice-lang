@@ -260,6 +260,7 @@ rsp_stack_mov_to_rsp(void)
 static void
 compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 {
+	// Save old proc/func context and reset the current one
 	const void *old_stmt = NULL;
 	size_t old_stack_size = 0;
 	value_kind_t old_stack_types[FUNC_CTX_MAX_STACK_TYPES_CAP] = {0};
@@ -277,8 +278,11 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 		ctx->func_ctx.stack_size = 0;
 	}
 
+	// Preserve old rsp
 	rsp_stack_mov_rsp();
+
 	ast_t ast = astid(is_proc ? decl_ast->proc_stmt.body : decl_ast->func_stmt.body);
+
 	compile_block(ctx, ast);
 
 	const value_kind_t *ret_types = is_proc ?
@@ -291,7 +295,10 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
 	}
 
+	// Set rsp to the old rsp
 	rsp_stack_mov_to_rsp();
+
+	// Drop all the leftovers and push return values on the stack
 	wtprintln("add rsp, %u", vec_size(is_proc ?
 																		decl_ast->proc_stmt.args
 																		: decl_ast->func_stmt.args) * WORD_SIZE);
@@ -300,6 +307,7 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
 	}
 
+	// Set  current context to the old one
 	if (is_proc) {
 		ctx->proc_ctx.stack_size = old_stack_size;
 		memcpy(ctx->proc_ctx.stack_types, old_stack_types, sizeof(value_kind_t) * old_stack_size);
@@ -424,6 +432,7 @@ compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
 			wtprintln("call __%s__", decl_ast->func_stmt.name->str);
 		}
 
+		// Add return values from function to the types stack
 		for (size_t i = vec_size(decl_ast->func_stmt.ret_types); i > 0; --i) {
 			stack_add_type(ctx, decl_ast->func_stmt.ret_types[i - 1]);
 		}
@@ -1111,8 +1120,14 @@ compile_proc(Compiler *ctx, const ast_t *ast)
 	}
 
 	rsp_stack_mov_to_rsp();
+
+	// Pop return address into the rax
 	wtln("pop rax");
+
+	// Pop the amount of procedure's arguments out of the stack
 	wtprintln("add rsp, %u", (vec_size(ast->proc_stmt.args)) * WORD_SIZE);
+
+	// Push return address from rax and return
 	wtln("push rax");
 	wtln("ret");
 
@@ -1151,6 +1166,8 @@ compile_func(Compiler *ctx, const ast_t *ast)
 								 ctx->func_ctx.stack_size);
 	}
 
+	// Check if type of the argument in function signature matches
+	// to the corresponding value's type on the stack.
 	for (size_t i = 0; i < ret_types_count; ++i) {
 		value_kind_t expected = ast->func_stmt.ret_types[i];
 		value_kind_t got = *get_type_from_end(ctx, ret_types_count - 1 - i);
@@ -1161,7 +1178,7 @@ compile_func(Compiler *ctx, const ast_t *ast)
 								value_kind_to_str_pretty(got),
 								value_kind_to_str_pretty(expected));
 			} else {
-				report_error("%s error: expected %zunth element from the end of the stack to be `%s`, but got: `%s`",
+				report_error("%s error: expected %zuth element from the end of the stack to be `%s`, but got: `%s`",
 										 loc_to_str(&locid(astid(last_ast_in_body).loc_id)),
 										 i,
 										 value_kind_to_str_pretty(got),
@@ -1170,23 +1187,31 @@ compile_func(Compiler *ctx, const ast_t *ast)
 		}
 	}
 
+	// Save return values into the registers
 	for (size_t i = 0; i < ret_types_count; ++i) {
 		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
 	}
 
+	// If name of the function is `main`, save last returned value to the `ret_code`,
+	// to use it as an exit code in the future.
 	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name->str)) {
 		wtprintln("mov [ret_code], %s", X86_64_LINUX_CONVENTION_REGISTERS[ret_types_count - 1]);
 	}
 
 	rsp_stack_mov_to_rsp();
+
+	// Pop return address into the rax
 	wtln("pop rax");
 
+	// Pop the amount of function's arguments out of the stack
 	wtprintln("add rsp, %u", (vec_size(ast->func_stmt.args)) * WORD_SIZE);
 
+	// Retrieve return values
 	for (size_t i = 0; i < ret_types_count; ++i) {
 		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
 	}
 
+	// Push return address from rax and return
 	wtln("push rax");
 	wtln("ret");
 

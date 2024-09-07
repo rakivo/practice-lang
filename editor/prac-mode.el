@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Mark Tyrkba <marktyrkba456@gmail.com>
 
 ;; Author: Mark Tyrkba <marktyrkba456@gmail.com>
-;; URL: https://github.com/tsoding/prac
+;; URL: https://github.com/rakivo/prac
 
 ;; Permission is hereby granted, free of charge, to any person
 ;; obtaining a copy of this software and associated documentation
