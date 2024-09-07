@@ -1257,7 +1257,7 @@ fill_values_map(Compiler *ctx)
 
 		case AST_VAR: {
 			report_if_redeclared(ctx, &ast, ast.var_stmt.name->str);
-		}
+		} break;
 
 		case AST_CONST: {
 			report_if_redeclared(ctx, &ast, ast.const_stmt.name->str);
