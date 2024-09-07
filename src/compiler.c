@@ -151,8 +151,8 @@ void
 stack_dump(const Compiler *ctx)
 {
 	const size_t size = get_stack_size(ctx);
-	for (int i = size - 1, j = 0; i > 0; --i, ++j) {
-		printf("  %d: %s\n", j, value_kind_to_str_pretty(*stack_at(ctx, i)));
+	for (int i = size, j = 0; i > 0; --i, ++j) {
+		printf("  %d: %s\n", j, value_kind_to_str_pretty(*stack_at(ctx, i - 1)));
 	}
 }
 
@@ -164,12 +164,16 @@ get_type_from_end(const Compiler *ctx, size_t idx)
 	return stack_at(ctx, idx_);
 }
 
+const value_kind_t *first_type = NULL;
+const value_kind_t *second_type = NULL;
+const value_kind_t *third_type = NULL;
+
 // Check the stack size and types of values on the stack before performing a binop.
 void
 check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const ast_t *ast)
 {
-	const value_kind_t *first_type = get_type_from_end(ctx, 1);
-	const value_kind_t *second_type = get_type_from_end(ctx, 0);
+	first_type = get_type_from_end(ctx, 1);
+	second_type = get_type_from_end(ctx, 0);
 
 	if (second_type == NULL || first_type == NULL) {
 		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
@@ -183,25 +187,28 @@ check_for_two_integers_on_the_stack(const Compiler *ctx, const char *op, const a
 	}
 }
 
-// void
-// check_for_two_types_on_the_stack(const Compiler *ctx, value_kind_t ft, value_kind_t st, const char *op, const ast_t *ast)
-// {
-// 	const value_kind_t *first_type = get_type_from_end(ctx, 1);
-// 	const value_kind_t *second_type = get_type_from_end(ctx, 0);
+// Check the stack size and types of values on the stack before performing a binop.
+void
+check_for_two_types_on_the_stack(const Compiler *ctx, const char *op, const ast_t *ast,
+																 value_kind_t first_type_, value_kind_t first_type_or_,
+																 value_kind_t second_type_, value_kind_t second_type_or_)
+{
+	first_type = get_type_from_end(ctx, 0);
+	second_type = get_type_from_end(ctx, 1);
 
-// 	if (second_type == NULL || first_type == NULL) {
-// 		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
-// 	} else if (*first_type  != ft
-// 				 ||  *second_type != st)
-// 	{
-// 		report_error("%s error: expected to have `%s` and `%s` on the stack, but got: `%s` and `%s`",
-// 								 loc_to_str(&locid(ast->loc_id)),
-// 								 value_kind_to_str_pretty(ft),
-// 								 value_kind_to_str_pretty(st),
-// 								 value_kind_to_str_pretty(*second_type),
-// 								 value_kind_to_str_pretty(*first_type));
-// 	}
-// }
+	if (second_type == NULL || first_type == NULL) {
+		report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), op);
+	} else if ((*first_type  != first_type_  && *first_type  != first_type_or_)
+				 ||  (*second_type != second_type_ && *second_type != second_type_or_))
+	{
+		report_error("%s error: expected to have `%s`s or `%s`s on the stack, but got: `%s` and `%s`",
+								 loc_to_str(&locid(ast->loc_id)),
+								 value_kind_to_str_pretty(first_type_),
+								 value_kind_to_str_pretty(first_type_or_),
+								 value_kind_to_str_pretty(*second_type),
+								 value_kind_to_str_pretty(*first_type));
+	}
+}
 
 INLINE void
 check_for_integer_on_the_stack(const Compiler *ctx, const char *op, const char *msg, const ast_t *ast)
@@ -255,19 +262,19 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 {
 	const void *old_stmt = NULL;
 	size_t old_stack_size = 0;
-	value_kind_t old_stack_types[FUNC_CTX_MAX_STACK_TYPES_CAP];
+	value_kind_t old_stack_types[FUNC_CTX_MAX_STACK_TYPES_CAP] = {0};
 	if (is_proc) {
 		old_stmt = ctx->proc_ctx.stmt;
 		old_stack_size = ctx->proc_ctx.stack_size;
+		memcpy(old_stack_types, ctx->proc_ctx.stack_types, sizeof(value_kind_t) * ctx->proc_ctx.stack_size);
 		ctx->proc_ctx.stmt = &decl_ast->proc_stmt;
 		ctx->proc_ctx.stack_size = 0;
-		memcpy(old_stack_types, ctx->proc_ctx.stack_types, ctx->proc_ctx.stack_size);
 	} else {
 		old_stmt = ctx->func_ctx.stmt;
 		old_stack_size = ctx->func_ctx.stack_size;
+		memcpy(old_stack_types, ctx->func_ctx.stack_types, sizeof(value_kind_t) * ctx->func_ctx.stack_size);
 		ctx->func_ctx.stmt = &decl_ast->func_stmt;
 		ctx->func_ctx.stack_size = 0;
-		memcpy(old_stack_types, ctx->func_ctx.stack_types, ctx->func_ctx.stack_size);
 	}
 
 	rsp_stack_mov_rsp();
@@ -295,11 +302,11 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 
 	if (is_proc) {
 		ctx->proc_ctx.stack_size = old_stack_size;
-		memcpy(ctx->proc_ctx.stack_types, old_stack_types, old_stack_size);
+		memcpy(ctx->proc_ctx.stack_types, old_stack_types, sizeof(value_kind_t) * old_stack_size);
 		ctx->proc_ctx.stmt = (const proc_stmt_t *) old_stmt;
 	} else {
 		ctx->func_ctx.stack_size = old_stack_size;
-		memcpy(ctx->func_ctx.stack_types, old_stack_types, old_stack_size);
+		memcpy(ctx->func_ctx.stack_types, old_stack_types, sizeof(value_kind_t) * old_stack_size);
 		ctx->func_ctx.stmt = (const func_stmt_t *) old_stmt;
 	}
 }
@@ -334,6 +341,142 @@ check_for_arg(Compiler *ctx, const char *str)
 }
 
 static void
+compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
+{
+	const size_t stack_size = get_stack_size(ctx);
+
+	size_t args_count_required = 0;
+	const value_t value = values_map[value_idx].value;
+	const ast_t *decl_ast = &astid(values_map[value_idx].value.ast_id);
+	if (value.ast_kind == AST_PROC) {
+		args_count_required = vec_size(decl_ast->proc_stmt.args);
+	} else if (value.ast_kind == AST_FUNC) {
+		args_count_required = vec_size(decl_ast->func_stmt.args);
+	} else {
+		UNREACHABLE;
+	}
+
+	if (stack_size < args_count_required) {
+		eprintf("%s error: stack underflow trying to call: `%s`\n",
+						loc_to_str(&locid(ast->loc_id)), ast->call.str);
+
+		report_error("	note: expected amount of values on "
+								 "the stack: %zu, the actual stack size: %zu",
+								 args_count_required, stack_size);
+	}
+
+	for (size_t i = 0; i < args_count_required; ++i) {
+		value_kind_t expected = 0;
+		value_kind_t got = *get_type_from_end(ctx, args_count_required - 1 - i);
+		if (value.ast_kind == AST_PROC) {
+#if defined(DEBUG) || defined(PRINT_STACK)
+			printf("--- %s ---\n", decl_ast->proc_stmt.name->str);
+#endif
+			expected = decl_ast->proc_stmt.args[i].kind;
+		} else {
+#if defined(DEBUG) || defined(PRINT_STACK)
+			printf("--- %s ---\n", decl_ast->func_stmt.name->str);
+#endif
+			expected = decl_ast->func_stmt.args[i].kind;
+		}
+
+#if defined(DEBUG) || defined(PRINT_STACK)
+		stack_dump(ctx);
+#endif
+
+		if (expected != got) {
+			loc_id_t arg_loc = 0;
+			if (ast->ast_id - 1 > 0
+			&& astid(ast->ast_id - 1).ast_kind == AST_PUSH)
+			{
+				arg_loc = astid(ast->ast_id - 1).loc_id;
+			} else if (value.ast_kind == AST_PROC) {
+				arg_loc = decl_ast->proc_stmt.args[i].loc_id;
+			} else {
+				arg_loc = decl_ast->func_stmt.args[i].loc_id;
+			}
+
+			eprintf("%s error: expected %zuth argument to call `%s` to be `%s`, but "
+							"got: `%s`\n",
+							loc_to_str(&locid(arg_loc)), i, ast->call.str,
+							value_kind_to_str_pretty(expected),
+							value_kind_to_str_pretty(got));
+
+			report_error("%s note: `%s` defined here",
+									 loc_to_str(&locid(decl_ast->loc_id)), ast->call.str);
+		}
+	}
+
+	for (size_t i = 0; i < args_count_required; ++i) {
+		stack_pop(ctx);
+	}
+
+	if (value.ast_kind == AST_PROC && decl_ast->proc_stmt.body >= 0) {
+		if (decl_ast->proc_stmt.inlin) {
+			compile_inline(ctx, decl_ast, true);
+		} else {
+			wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
+		}
+	} else {
+		if (decl_ast->func_stmt.inlin && decl_ast->func_stmt.body >= 0) {
+			compile_inline(ctx, decl_ast, false);
+		} else {
+			wtprintln("call __%s__", decl_ast->func_stmt.name->str);
+		}
+
+		for (size_t i = vec_size(decl_ast->func_stmt.ret_types); i > 0; --i) {
+			stack_add_type(ctx, decl_ast->func_stmt.ret_types[i - 1]);
+		}
+	}
+
+	const value_t value_ = {
+			.ast_id = value.ast_id,
+			.ast_kind = value.ast_kind,
+			.is_used = true
+	};
+
+	shput(values_map, ast->call.str, value_);
+}
+
+// TODO: deprecate `funcptr` type.
+// It may happen when you have a function that accepts `funcptr` as an argument,
+//   and you trying to call this argument, which is basically just calling a function pointer.
+static void
+compile_argument_push_or_call(Compiler *ctx, i32 value_idx, const ast_t *ast, bool is_call)
+{
+	if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
+		const arg_t *arg = check_for_arg(ctx, ast->literal.str);
+		if (arg == NULL) {
+			report_error("%s error: undefined symbol: `%s`",
+									 loc_to_str(&locid(ast->loc_id)), ast->literal.str);
+		}
+
+		// Compute the index of the value from the end of the stack
+		size_t stack_idx = 0;
+		if (ctx->proc_ctx.stmt != NULL) {
+			stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size;
+			if (ctx->proc_ctx.stmt->inlin) stack_idx--;
+		} else {
+			stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size;
+			if (ctx->func_ctx.stmt->inlin) stack_idx--;
+		}
+
+		if (is_call) {
+			wtprintln("call qword [rsp + %zu]", stack_idx * WORD_SIZE);
+		} else {
+			wtprintln("mov rax, [rsp + %zu]", stack_idx * WORD_SIZE);
+			wtln("push rax");
+			stack_add_type(ctx, arg->kind);
+		}
+	} else {
+		if (value_idx == -1) {
+			report_error("%s error: undefined symbol: `%s`",
+									 loc_to_str(&locid(ast->loc_id)), ast->call.str);
+		}
+	}
+}
+
+static void
 compile_ast(Compiler *ctx, const ast_t *ast)
 {
 #ifdef DEBUG
@@ -349,9 +492,9 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 
 	switch (ast->ast_kind) {
 	// These are handled in different place
-	case AST_CONST:
 	case AST_VAR:
 	case AST_FUNC:
+	case AST_CONST:
 	case AST_PROC: {} break;
 
 	case AST_IF: {
@@ -530,34 +673,7 @@ compile_loop:
 			shput(values_map, ast->call.str, value_);
 			stack_add_type(ctx, VALUE_KIND_FUNCTION_POINTER);
 		} else {
-				if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
-					const arg_t *arg = check_for_arg(ctx, ast->literal.str);
-					if (arg == NULL) {
-						report_error("%s error: undefined symbol: `%s`",
-												 loc_to_str(&locid(ast->loc_id)),
-												 ast->literal.str);
-					}
-
-					// Compute the index of the value from the end of the stack
-					size_t stack_idx = 0;
-					if (ctx->proc_ctx.stmt != NULL) {
-						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size;
-						if (ctx->proc_ctx.stmt->inlin) stack_idx--;
-					} else {
-						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size;
-						if (ctx->func_ctx.stmt->inlin) stack_idx--;
-					}
-
-					wtprintln("mov rax, [rsp + %zu]", stack_idx * WORD_SIZE);
-					wtln("push rax");
-					stack_add_type(ctx, arg->kind);
-			} else {
-				if (value_idx == -1) {
-					report_error("%s error: undefined symbol: `%s`",
-											 loc_to_str(&locid(ast->loc_id)),
-											 ast->call.str);
-				}
-			}
+			compile_argument_push_or_call(ctx, value_idx, ast, false);
 		}
 	} break;
 
@@ -565,97 +681,13 @@ compile_loop:
 		const i32 value_idx = shgeti(values_map, ast->call.str);
 		const i32 var_idx = shgeti(ctx->var_map, ast->call.str);
 		if (value_idx != -1) {
-			const size_t stack_size = get_stack_size(ctx);
-
-			size_t args_count_required = 0;
-			const value_t value = values_map[value_idx].value;
-			const ast_t *decl_ast = &astid(values_map[value_idx].value.ast_id);
-			if (value.ast_kind == AST_PROC) {
-				args_count_required = vec_size(decl_ast->proc_stmt.args);
-			} else if (value.ast_kind == AST_FUNC) {
-				args_count_required = vec_size(decl_ast->func_stmt.args);
-			} else {
-				UNREACHABLE;
-			}
-
-			if (stack_size < args_count_required) {
-				eprintf("%s error: stack underflow trying to call: `%s`\n",
-								loc_to_str(&locid(ast->loc_id)),
-								ast->call.str);
-
-				report_error("  note: expected amount of values on "
-										 "the stack: %zu, the actual stack size: %zu",
-										 args_count_required, stack_size);
-			}
-
-			for (size_t i = 0; i < args_count_required; ++i) {
-				stack_pop(ctx);
-			}
-
-			const value_t value_ = {
-				.ast_id = value.ast_id,
-				.ast_kind = value.ast_kind,
-				.is_used = true
-			};
-
-			if (value.ast_kind == AST_PROC && decl_ast->proc_stmt.body >= 0) {
-				if (decl_ast->proc_stmt.inlin) {
-					compile_inline(ctx, decl_ast, true);
-				} else {
-					wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
-				}
-			} else {
-				if (decl_ast->func_stmt.inlin && decl_ast->func_stmt.body >= 0) {
-					compile_inline(ctx, decl_ast, false);
-				} else {
-					wtprintln("call __%s__", decl_ast->func_stmt.name->str);
-				}
-
-				for (size_t i = vec_size(decl_ast->func_stmt.ret_types); i > 0; --i) {
-					stack_add_type(ctx, decl_ast->func_stmt.ret_types[i - 1]);
-				}
-			}
-
-			shput(values_map, ast->call.str, value_);
+			compile_function_call(ctx, value_idx, ast);
 		} else if (var_idx != -1) {
 			wtprintln("mov rax, [%s]", ctx->var_map[var_idx].key);
 			wtln("push rax");
 			stack_add_type(ctx, ctx->var_map[var_idx].value.kind);
 		} else {
-			if (ctx->proc_ctx.stmt != NULL || ctx->func_ctx.stmt != NULL) {
-				const arg_t *arg = check_for_arg(ctx, ast->literal.str);
-				if (arg == NULL) {
-					report_error("%s error: undefined symbol: `%s`",
-											 loc_to_str(&locid(ast->loc_id)),
-											 ast->literal.str);
-				}
-
-				// Compute the index of the value from the end of the stack
-				size_t stack_idx = 0;
-				if (ctx->proc_ctx.stmt != NULL) {
-					ctx->proc_ctx.called_funcptr = true;
-					if (ctx->proc_ctx.stmt->inlin) {
-						stack_idx = ctx->proc_ctx.stack_size - arg_idx;
-					} else {
-						stack_idx = vec_size(ctx->proc_ctx.stmt->args) - arg_idx + ctx->proc_ctx.stack_size;
-					}
-				} else {
-					ctx->func_ctx.called_funcptr = true;
-					if (ctx->func_ctx.stmt->inlin) {
-						stack_idx = ctx->func_ctx.stack_size - arg_idx;
-					} else {
-						stack_idx = vec_size(ctx->func_ctx.stmt->args) - arg_idx + ctx->func_ctx.stack_size;
-					}
-				}
-
-				wtprintln("call qword [rsp + %zu]", stack_idx * WORD_SIZE);
-			} else {
-				if (value_idx == -1) {
-					report_error("%s error: undefined symbol: `%s`",
-											 loc_to_str(&locid(ast->loc_id)),
-											 ast->call.str);
-				}
-			}
+			compile_argument_push_or_call(ctx, value_idx, ast, false);
 		}
 	} break;
 
@@ -677,6 +709,7 @@ compile_loop:
 		} break;
 
 		case VALUE_KIND_BYTE: TODO break;
+
 		case VALUE_KIND_FUNCTION_POINTER:
 		case VALUE_KIND_POISONED:
 		case VALUE_KIND_LAST:	UNREACHABLE; break;
@@ -684,15 +717,19 @@ compile_loop:
 	} break;
 
 	case AST_PLUS: {
-		const value_kind_t *first_type = get_type_from_end(ctx, 0);
-		const value_kind_t *second_type = get_type_from_end(ctx, 1);
+		first_type = get_type_from_end(ctx, 0);
+		second_type = get_type_from_end(ctx, 1);
 
 		if (second_type == NULL || first_type == NULL) {
 			report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), "+");
-		} else if ((*first_type  != VALUE_KIND_INTEGER && *first_type  != VALUE_KIND_STRING)
-					 ||  (*second_type != VALUE_KIND_INTEGER && *second_type != VALUE_KIND_STRING))
+		} else if ((*first_type != VALUE_KIND_INTEGER
+						 && *first_type != VALUE_KIND_BYTE
+						 && *first_type != VALUE_KIND_STRING)
+					 ||  (*second_type != VALUE_KIND_INTEGER
+						 && *second_type != VALUE_KIND_BYTE
+						 && *second_type != VALUE_KIND_STRING))
 		{
-			report_error("%s error: expected to have two `str` or `int`s on the stack, but got: `%s` and `%s`",
+			report_error("%s error: expected to have `int`, `byte` or `str`s on the stack, but got: `%s` and `%s`",
 									 loc_to_str(&locid(ast->loc_id)),
 									 value_kind_to_str_pretty(*second_type),
 									 value_kind_to_str_pretty(*first_type));
@@ -714,8 +751,7 @@ compile_loop:
 			wtln("movzx rax, al");
 			wtln("mov [rsp], rax");
 			stack_pop(ctx);
-			// *stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_BYTE;
-			*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
+			*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_BYTE;
 		} break;
 
 		case VALUE_KIND_STRING: TODO break;
@@ -781,7 +817,10 @@ compile_loop:
 	} break;
 
 	case AST_EQUAL: {
-		check_for_two_integers_on_the_stack(ctx, "=", ast);
+		check_for_two_types_on_the_stack(ctx, "=", ast,
+																		 VALUE_KIND_INTEGER, VALUE_KIND_BYTE,
+																		 VALUE_KIND_INTEGER, VALUE_KIND_BYTE);
+
 		wtln("pop rax");
 		wtln("mov rbx, qword [rsp]");
 		wtln("cmp rax, rbx");
@@ -832,8 +871,8 @@ compile_loop:
 	case AST_DOT: {
 		value_kind_t last_type = check_stack_for_last(ctx, ".", ast);
 		switch (last_type) {
-		case VALUE_KIND_BYTE: TODO break;
-
+		// TODO: Create a separate function `dmp_byte`
+		case VALUE_KIND_BYTE:
 		case VALUE_KIND_FUNCTION_POINTER:
 		case VALUE_KIND_INTEGER: {
 			wtln("mov rax, qword [rsp]");
@@ -1188,7 +1227,7 @@ compiler_compile(Compiler *ctx)
 	compile_func(ctx, &ast);
 
 	// TODO: Properly check if procedure/function is used or not
-	// Compile only used procs/funcs
+	// Compile only used procs/funcs that are not inlined
 	for (ptrdiff_t i = 0; i < shlen(values_map); ++i) {
 		const value_t value = values_map[i].value;
 		if (value.ast_kind == AST_PROC

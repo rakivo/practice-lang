@@ -39,7 +39,7 @@
 
 (eval-and-compile
   (defconst prac-keywords
-    '("if" "func" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup" "const" "int" "str" "syscall" "syscall1" "syscall2" "syscall3" "syscall4" "syscall5" "syscall6" "var" "bnot" "inline")))
+    '("if" "func" "funcptr" "else" "while" "do" "proc" "end" "drop" "dup" "const" "int" "str" "syscall" "syscall1" "syscall2" "syscall3" "syscall4" "syscall5" "syscall6" "var" "bnot" "inline" "byte")))
 
 (defconst prac-highlights
   `((,(regexp-opt prac-keywords 'symbols) . font-lock-keyword-face)))
