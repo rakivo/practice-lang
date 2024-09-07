@@ -316,21 +316,15 @@ check_for_arg(Compiler *ctx, const char *str)
 	arg_idx = 0;
 	arg_t *arg = NULL;
 
-	if (ctx->proc_ctx.stmt != NULL) {
-		FOREACH_IDX(idx, arg_t, arg_, ctx->proc_ctx.stmt->args) {
-			if (0 == strcmp(arg_.name, str)) {
-				arg = &arg_;
-				arg_idx = idx;
-				break;
-			}
-		}
-	} else if (ctx->func_ctx.stmt != NULL) {
-		FOREACH_IDX(idx, arg_t, arg_, ctx->func_ctx.stmt->args) {
-			if (0 == strcmp(arg_.name, str)) {
-				arg = &arg_;
-				arg_idx = idx;
-				break;
-			}
+	arg_t *args = ctx->proc_ctx.stmt == NULL ?
+		ctx->func_ctx.stmt->args
+		: ctx->proc_ctx.stmt->args;
+
+	FOREACH_IDX(idx, arg_t, arg_, args) {
+		if (0 == strcmp(arg_.name, str)) {
+			arg = &arg_;
+			arg_idx = idx;
+			break;
 		}
 	}
 
