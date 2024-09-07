@@ -277,6 +277,14 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			token_idx++;
 		}
 
+		if ((ret_type_ = value_kind_try_from_str(parser->ts[token_idx + 1].str))
+		&&  token_idx + 2 < parser->tc
+		&&  parser->ts[token_idx + 1].kind == TOKEN_DO)
+		{
+			vec_add(ast.func_stmt.ret_types, (value_kind_t) ret_type_);
+			token_idx++;
+		}
+
 		while (token_idx < parser->tc) {
 			const token_t token_ = parser->ts[token_idx++];
 
@@ -294,11 +302,6 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 			}
 
 			const value_kind_t kind = (value_kind_t) kind_;
-
-			if (token_idx > parser->tc || parser->ts[token_idx].kind == TOKEN_DO) {
-				report_error("%s error: expected a name after the type", loc_to_str(&locid(token_.loc_id)));
-			}
-
 			const arg_t func_arg = {
 				.kind = kind,
 				.loc_id = token_.loc_id,
@@ -334,6 +337,13 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		if (!done) {
 			report_error("%s error: no closing end found", loc_to_str(&locid(token->loc_id)));
+		}
+
+		if (vec_size(ast.func_stmt.ret_types) > 6) {
+			report_error("%s error: naah bruh, too many return values.\n"
+									 "%s note: The maximum amount of values that you can return from function is 6",
+									 loc_to_str(&locid(token->loc_id)),
+									 loc_to_str(&locid(ret_type_token.loc_id)));
 		}
 
 		if (last_ast.next > 0) {
