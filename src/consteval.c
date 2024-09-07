@@ -121,7 +121,8 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	case AST_PUSH: {
 		consteval_value_t value = {
 			.value = 0,
-			.kind = ast->push_stmt.value_kind
+			.kind = ast->push_stmt.value_kind,
+			.ast_id = ast->ast_id
 		};
 
 		switch (ast->push_stmt.value_kind) {
@@ -176,6 +177,7 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 		consteval->stack[consteval->stack_size++] = (consteval_value_t) {
 			.value = (*consteval->const_map)[const_idx].value.value,
 			.kind = (*consteval->const_map)[const_idx].value.kind,
+			.ast_id = (*consteval->const_map)[const_idx].value.ast_id
 		};
 	} break;
 
@@ -200,5 +202,6 @@ consteval_eval(Consteval *consteval, const ast_t *const_ast, bool is_var)
 								 is_var ? "variable" : "constant");
 	}
 
+	consteval->stack[consteval->stack_size - 1].ast_id = const_ast->ast_id;
 	return consteval->stack[consteval->stack_size - 1];
 }

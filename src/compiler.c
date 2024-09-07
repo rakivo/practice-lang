@@ -1,3 +1,4 @@
+#include "lexer.h"
 #include "lib.h"
 #include "ast.h"
 #include "common.h"
@@ -1202,70 +1203,86 @@ compile_func(Compiler *ctx, const ast_t *ast)
 	ctx->func_ctx.called_funcptr = false;
 }
 
-void
-compiler_compile(Compiler *ctx)
+static void
+report_if_redeclared(Compiler *ctx, const ast_t *ast, const char *key)
 {
-	stream = fopen(X86_64_OUTPUT, "w");
-	if (stream == NULL) {
-		eprintf("error: Failed to open file: %s\n", X86_64_OUTPUT);
-		exit(EXIT_FAILURE);
+	ast_id_t ast_id = -1;
+
+	if (-1 != shgeti(values_map, key)) {
+		ast_id = values_map[shgeti(values_map, key)].value.ast_id;
+	} else if (-1 != shgeti(ctx->const_map, key)) {
+		ast_id = ctx->const_map[shgeti(ctx->const_map, key)].value.ast_id;
+	} else if (-1 != shgeti(ctx->var_map, key)) {
+		ast_id = ctx->var_map[shgeti(ctx->var_map, key)].value.ast_id;
 	}
 
-	wln(FORMAT_64BIT);
+	if (-1 != ast_id) {
+		eprintf("%s error: %s `%s` got redeclared\n",
+						loc_to_str(&locid(ast->loc_id)),
+						ast_kind_to_str_pretty(ast->ast_kind),
+						key);
 
-	print_defines();
-	wln(SECTION_TEXT_EXECUTABLE);
+		report_error("%s note: previously declared here",
+								 loc_to_str(&locid(astid(ast_id).loc_id)));
+	}
+}
 
+static void
+fill_values_map(Compiler *ctx)
+{
 	ast_t ast = astid(0);
 	while (ast.next && ast.next <= ASTS_SIZE) {
-		const bool is_proc = ast.ast_kind == AST_PROC;
-		const bool is_func = ast.ast_kind == AST_FUNC;
-		if (is_proc || is_func) {
+		switch (ast.ast_kind) {
+		case AST_POISONED:
+		case AST_IF:
+		case AST_WHILE:
+		case AST_DOT:
+		case AST_DUP:
+		case AST_BNOT:
+		case AST_BOR:
+		case AST_MOD:
+		case AST_PUSH:
+		case AST_MUL:
+		case AST_DIV:
+		case AST_MINUS:
+		case AST_PLUS:
+		case AST_LESS:
+		case AST_EQUAL:
+		case AST_CALL:
+		case AST_WRITE:
+		case AST_DROP:
+		case AST_GREATER:
+		case AST_SYSCALL:
+		case AST_LITERAL: break;
+
+		case AST_VAR: {
+			report_if_redeclared(ctx, &ast, ast.var_stmt.name->str);
+		}
+
+		case AST_CONST: {
+			report_if_redeclared(ctx, &ast, ast.const_stmt.name->str);
+		} break;
+
+		case AST_FUNC:
+		case AST_PROC: {
+			const bool is_proc = ast.ast_kind == AST_PROC;
+			const char *name = is_proc ? ast.proc_stmt.name->str : ast.func_stmt.name->str;
+			report_if_redeclared(ctx, &ast, name);
 			const value_t value = {
 				.ast_id = ast.ast_id,
 				.ast_kind = ast.ast_kind
 			};
-			shput(values_map, is_proc ? ast.proc_stmt.name->str : ast.func_stmt.name->str, value);
+			shput(values_map, name, value);
+		} break;
 		}
+
 		ast = astid(ast.next);
 	}
+}
 
-	ast = astid(ctx->ast_cur);
-	compile_func(ctx, &ast);
-
-	// TODO: Properly check if procedure/function is used or not
-	// Compile only used procs/funcs that are not inlined
-	for (ptrdiff_t i = 0; i < shlen(values_map); ++i) {
-		const value_t value = values_map[i].value;
-		if (value.ast_kind == AST_PROC
-		&& !astid(value.ast_id).proc_stmt.inlin // && value.is_used
-		)
-		{
-			compile_proc(ctx, &astid(value.ast_id));
-		} else if (value.ast_kind == AST_FUNC
-					 && !astid(value.ast_id).func_stmt.inlin // && value.is_used
-					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name->str))
-		{
-			compile_func(ctx, &astid(value.ast_id));
-		}
-	}
-
-	wln(GLOBAL " _start");
-	wln("_start:");
-
-	wtln("call __" MAIN_FUNCTION "__");
-
-	print_exit();
-
-	if (used_dmp_i64) print_dmp_i64();
-	if (used_strlen) print_strlen();
-
-	print_data_section();
-
-	for (ptrdiff_t i = 0; i < shlen(ctx->var_map); ++i) {
-		wprintln("%s dq 0x%lX", ctx->var_map[i].key, ctx->var_map[i].value.value);
-	}
-
+static void
+compile_comptime_string_literals(void)
+{
 	string_literal_counter = 0;
 	FOREACH(const char *, str, strs) {
 		scratch_buffer_clear();
@@ -1288,7 +1305,70 @@ compiler_compile(Compiler *ctx)
 		wprintln("%s " COMPTIME_EQU " $ - %s", scratch_buffer_to_string(), strdb);
 		string_literal_counter++;
 	}
+}
 
+// TODO: Properly check if procedure/function is used or not
+// Compile only used procs/funcs that are not inlined
+static void
+compile_funcs_and_procs(Compiler *ctx)
+{
+	for (ptrdiff_t i = 0; i < shlen(values_map); ++i) {
+		const value_t value = values_map[i].value;
+		if (value.ast_kind == AST_PROC
+		&& !astid(value.ast_id).proc_stmt.inlin
+		// && value.is_used
+			)
+		{
+			compile_proc(ctx, &astid(value.ast_id));
+		} else if (value.ast_kind == AST_FUNC
+					 && !astid(value.ast_id).func_stmt.inlin
+					 && 0 != strcmp(MAIN_FUNCTION, astid(value.ast_id).func_stmt.name->str)
+					 // && value.is_used
+			)
+		{
+			compile_func(ctx, &astid(value.ast_id));
+		}
+	}
+}
+
+void
+compiler_compile(Compiler *ctx)
+{
+	stream = fopen(X86_64_OUTPUT, "w");
+	if (stream == NULL) {
+		eprintf("error: Failed to open file: %s\n", X86_64_OUTPUT);
+		exit(EXIT_FAILURE);
+	}
+
+	wln(FORMAT_64BIT);
+
+	print_defines();
+	wln(SECTION_TEXT_EXECUTABLE);
+
+	fill_values_map(ctx);
+
+	ast_t ast = astid(ctx->ast_cur);
+	compile_func(ctx, &ast);
+
+	wln(GLOBAL " _start");
+	wln("_start:");
+
+	wtln("call __" MAIN_FUNCTION "__");
+
+	print_exit();
+
+	compile_funcs_and_procs(ctx);
+
+	if (used_dmp_i64) print_dmp_i64();
+	if (used_strlen) print_strlen();
+
+	print_data_section();
+
+	for (ptrdiff_t i = 0; i < shlen(ctx->var_map); ++i) {
+		wprintln("%s dq 0x%lX", ctx->var_map[i].key, ctx->var_map[i].value.value);
+	}
+
+	compile_comptime_string_literals();
 	compiler_deinit();
 }
 

@@ -198,6 +198,9 @@ extern ast_t ASTS[ASTS_CAP];
 const char *
 ast_kind_to_str(const ast_kind_t ast_kind);
 
+const char *
+ast_kind_to_str_pretty(const ast_kind_t ast_kind);
+
 void
 print_ast(const ast_t *ast);
 

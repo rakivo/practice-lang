@@ -228,7 +228,6 @@ main_function_check(bool at_top_level, ast_t ast)
 		case AST_VAR: break;
 		case AST_CONST: break;
 
-
 		case AST_POISONED:
 		case AST_IF:
 		case AST_WHILE:

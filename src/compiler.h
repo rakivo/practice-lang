@@ -70,6 +70,7 @@ typedef struct {
 // Consteval only for integers right now
 typedef struct {
 	i64 value;
+	ast_id_t ast_id;
 	value_kind_t kind;
 } consteval_value_t;
 
