@@ -17,6 +17,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+// global variable to time using `set_time` and `dbg_time` macros from `common.h`
+clock_t _time = 0;
+
 static lines_t lines = NULL;
 static size_t lines_count = 0;
 static tokens_t tokens = NULL;
@@ -58,7 +61,7 @@ consteval_step(void)
 	Consteval consteval = new_consteval(&const_map);
 
 #ifdef DEBUG
-	const clock_t consteval_start = clock();
+	set_time;
 #endif
 
 	while (ast.next && ast.next <= ASTS_SIZE) {
@@ -73,8 +76,7 @@ consteval_step(void)
 	}
 
 #ifdef DEBUG
-	const clock_t consteval_end = clock();
-	dbg_time(consteval, "constevaling");
+	dbg_time("constevaling");
 #endif
 }
 
@@ -105,7 +107,7 @@ lex_step(const char *file_path)
 	Lexer lexer = new_lexer(file.file_id, lines, lines_count);
 
 #ifdef DEBUG
-	const clock_t lex_start = clock();
+	set_time;
 #endif
 
 	const tokens_t tokens = lexer_lex(&lexer);
@@ -115,8 +117,7 @@ lex_step(const char *file_path)
 #endif
 
 #ifdef DEBUG
-	const clock_t lex_end = clock();
-	dbg_time(lex, "lexing");
+	dbg_time("lexing");
 #endif
 
 	return (ttc_t) {
@@ -131,7 +132,7 @@ parse_step(const tokens_t tokens, size_t tokens_count)
 	Parser parser = new_parser(tokens, tokens_count);
 
 #ifdef DEBUG
-	const clock_t parser_start = clock();
+	set_time;
 #endif
 
 	parser_parse(&parser);
@@ -141,8 +142,7 @@ parse_step(const tokens_t tokens, size_t tokens_count)
 #endif
 
 #ifdef DEBUG
-	const clock_t parser_end = clock();
-	dbg_time(parser, "parsing");
+	dbg_time("parsing");
 #endif
 }
 
@@ -152,14 +152,13 @@ compile_step(void)
 	Compiler compiler = new_compiler(main_function, const_map, var_map);
 
 #ifdef DEBUG
-	const clock_t compile_start = clock();
+	set_time;
 #endif
 
 	compiler_compile(&compiler);
 
 #ifdef DEBUG
-	const clock_t compile_end = clock();
-	dbg_time(compile, "compiling");
+	dbg_time("compiling");
 #endif
 }
 
@@ -169,7 +168,7 @@ compile_asm_step(void)
 	Nob_Cmd cmd = {0};
 
 #ifdef DEBUG
-	const clock_t compile_asm_start = clock();
+	set_time;
 #endif
 
 	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS);
@@ -184,8 +183,7 @@ compile_asm_step(void)
 	nob_cmd_run_sync(cmd, dbg_echo);
 
 #ifdef DEBUG
-	const clock_t compile_asm_end = clock();
-	dbg_time(compile_asm, "compiling asm");
+	dbg_time("compiling asm");
 #endif
 
 	nob_cmd_free(cmd);

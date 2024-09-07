@@ -183,23 +183,21 @@ tokens_t
 lexer_lex(Lexer *lexer)
 {
 #ifdef DEBUG
-	clock_t alloc_start = clock();
+	set_time;
 #endif
 	tokens_t ret = (tokens_t) malloc(sizeof(token_t)
 																	 * MAXIMUM_TOKENS_AMOUNT_PER_LINE
 																	 * lexer->lines_count);
 #ifdef DEBUG
-	clock_t alloc_end = clock();
-	dbg_time(alloc, "allocation in `lexer_lex()`");
-	clock_t lexing_lines_start = clock();
+	dbg_time("allocation in `lexer_lex()`");
+	set_time;
 #endif
 	for (size_t i = 0; i < lexer->lines_count; ++i) {
 		lexer_lex_line(lexer, lexer->lines[i], &ret);
 		lexer->row++;
 	}
 #ifdef DEBUG
-	clock_t lexing_lines_end = clock();
-	dbg_time(lexing_lines, "lexing_lines in `lexer_lex()`");
+	dbg_time("lexing_lines in `lexer_lex()`");
 #endif
 	return ret;
 }
