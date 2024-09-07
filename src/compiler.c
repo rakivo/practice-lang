@@ -16,11 +16,11 @@
 	exit(EXIT_FAILURE); \
 } while (0)
 
-#define TAB "\t"
-
 #define wln(...) fprintf(stream, __VA_ARGS__ "\n")
-#define wtln(...) wln(TAB __VA_ARGS__)
 #define wprintln(fmt, ...) fprintf(stream, fmt "\n", __VA_ARGS__)
+
+#define TAB "\t"
+#define wtln(...) wln(TAB __VA_ARGS__)
 #define wtprintln(fmt, ...) wprintln(TAB fmt, __VA_ARGS__)
 
 static FILE *stream = NULL;
@@ -28,9 +28,6 @@ static FILE *stream = NULL;
 static size_t label_counter = 0;
 static size_t while_label_counter = 0;
 static size_t string_literal_counter = 0;
-
-static size_t stack_size = 0;
-static value_kind_t stack_types[MAX_STACK_TYPES_CAP];
 
 static const char **strs = NULL;
 
@@ -103,12 +100,6 @@ void stack_add_type(Compiler *ctx, value_kind_t type)
 			exit(1);
 		}
 		ctx->func_ctx.stack_types[ctx->func_ctx.stack_size++] = type;
-	} else {
-		if (unlikely(stack_size + 1 >= MAX_STACK_TYPES_CAP)) {
-			eprintf("EMERGENCY CRASH, STACK IS TOO BIG\n");
-			exit(1);
-		}
-		stack_types[stack_size++] = type;
 	}
 }
 
@@ -119,8 +110,6 @@ void stack_pop(Compiler *ctx)
 		ctx->proc_ctx.stack_size--;
 	else if (ctx->func_ctx.stmt != NULL)
 		ctx->func_ctx.stack_size--;
-	else
-		stack_size--;
 }
 
 INLINE const value_kind_t *
@@ -128,7 +117,7 @@ stack_at(const Compiler *ctx, size_t idx)
 {
 	if (ctx->proc_ctx.stmt != NULL) return &ctx->proc_ctx.stack_types[idx];
 	else if (ctx->func_ctx.stmt != NULL) return &ctx->func_ctx.stack_types[idx];
-	else return &stack_types[idx];
+	else return NULL;
 }
 
 UNUSED INLINE value_kind_t *
@@ -136,7 +125,7 @@ stack_at_mut(Compiler *ctx, size_t idx)
 {
 	if (ctx->proc_ctx.stmt != NULL) return &ctx->proc_ctx.stack_types[idx];
 	else if (ctx->func_ctx.stmt != NULL) return &ctx->func_ctx.stack_types[idx];
-	else return &stack_types[idx];
+	else return NULL;
 }
 
 INLINE size_t
@@ -144,7 +133,7 @@ get_stack_size(const Compiler *ctx)
 {
 	if (ctx->proc_ctx.stmt != NULL) return ctx->proc_ctx.stack_size;
 	else if (ctx->func_ctx.stmt != NULL) return ctx->func_ctx.stack_size;
-	else return stack_size;
+	else return 0;
 }
 
 void
@@ -731,9 +720,9 @@ compile_loop:
 
 		if (second_type == NULL || first_type == NULL) {
 			report_error("%s error: `%s` stack underflow, bruv", loc_to_str(&locid(ast->loc_id)), "+");
-		} else if ((*first_type != VALUE_KIND_INTEGER
-						 && *first_type != VALUE_KIND_BYTE
-						 && *first_type != VALUE_KIND_STRING)
+		} else if ((*first_type  != VALUE_KIND_INTEGER
+						 && *first_type  != VALUE_KIND_BYTE
+						 && *first_type  != VALUE_KIND_STRING)
 					 ||  (*second_type != VALUE_KIND_INTEGER
 						 && *second_type != VALUE_KIND_BYTE
 						 && *second_type != VALUE_KIND_STRING))
@@ -753,6 +742,7 @@ compile_loop:
 		}
 
 		switch (*first_type) {
+		case VALUE_KIND_STRING:
 		case VALUE_KIND_INTEGER: {
 			wtln("pop rbx");
 			wtln("mov rax, qword [rsp]");
@@ -762,8 +752,6 @@ compile_loop:
 			stack_pop(ctx);
 			*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_BYTE;
 		} break;
-
-		case VALUE_KIND_STRING: TODO break;
 
 		case VALUE_KIND_BYTE: TODO break;
 
