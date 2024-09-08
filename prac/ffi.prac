@@ -1,7 +1,6 @@
-extern proc _exit int code end
+extern func return_69 int end
 
 func main int do
-  69 _exit!
-
+  return_69! .
   0
 end

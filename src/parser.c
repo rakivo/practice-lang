@@ -110,7 +110,7 @@ parse_proc_signature(Parser *parser, proc_stmt_t *proc_stmt, bool expect_end)
 }
 
 static void
-parse_func_signature(Parser *parser, const token_t *ret_type_token, ast_t *ast, bool expect_end)
+parse_func_signature(Parser *parser, const token_t *ret_type_token, func_stmt_t *func_stmt, loc_id_t ast_loc_id, bool expect_end)
 {
 	i32 ret_type_ = value_kind_try_from_str(ret_type_token->str);
 	if (ret_type_ < 0) {
@@ -119,23 +119,26 @@ parse_func_signature(Parser *parser, const token_t *ret_type_token, ast_t *ast, 
 						ret_type_token->str);
 
 		report_error("%s note: this function",
-								 loc_to_str(&locid(ast->loc_id)));
+								 loc_to_str(&locid(ast_loc_id)));
 	}
 
-	vec_add(ast->func_stmt.ret_types, (value_kind_t) ret_type_);
+	vec_add(func_stmt->ret_types, (value_kind_t) ret_type_);
 	while (token_idx + 1 < parser->ts.count
 	&& (ret_type_ = value_kind_try_from_str(parser->ts.tokens[token_idx].str))
+	&&  -1 != ret_type_
 	&& (-1 != value_kind_try_from_str(parser->ts.tokens[token_idx + 1].str)))
 	{
-		vec_add(ast->func_stmt.ret_types, (value_kind_t) ret_type_);
+		vec_add(func_stmt->ret_types, (value_kind_t) ret_type_);
 		token_idx++;
 	}
 
 	if ((ret_type_ = value_kind_try_from_str(parser->ts.tokens[token_idx + 1].str))
+	&&  -1 != ret_type_
 	&&  token_idx + 2 < parser->ts.count
-	&&  parser->ts.tokens[token_idx + 1].kind == TOKEN_DO)
+	&&  (parser->ts.tokens[token_idx + 1].kind == TOKEN_DO
+		|| parser->ts.tokens[token_idx + 1].kind == TOKEN_END))
 	{
-		vec_add(ast->func_stmt.ret_types, (value_kind_t) ret_type_);
+		vec_add(func_stmt->ret_types, (value_kind_t) ret_type_);
 		token_idx++;
 	}
 
@@ -159,7 +162,7 @@ parse_func_signature(Parser *parser, const token_t *ret_type_token, ast_t *ast, 
 			report_error("  note: You could've forgot to specify return type of the function.\n"
 									 "    For example: "
 									 "'func %s <return types...> <args...> do <body...> end'",
-									 ast->func_stmt.name->str);
+									 func_stmt->name->str);
 		}
 
 		const value_kind_t kind = (value_kind_t) kind_;
@@ -180,7 +183,7 @@ parse_func_signature(Parser *parser, const token_t *ret_type_token, ast_t *ast, 
 
 		func_arg.name = name_token.str;
 
-		vec_add(ast->func_stmt.args, func_arg);
+		vec_add(func_stmt->args, func_arg);
 	}
 }
 
@@ -299,13 +302,20 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		const token_t ret_type_token = parser->ts.tokens[token_idx];
 
 		if (next_token.kind == TOKEN_PROC) {
-			parse_proc_signature(parser, &ast.extern_decl.proc_stmt, true);
+			parse_proc_signature(parser,
+													 &ast.extern_decl.proc_stmt,
+													 true);
 			ast.extern_decl.kind = EXTERN_PROC;
 			ast.extern_decl.proc_stmt.body = -1;
 			ast.extern_decl.proc_stmt.inlin = false;
 			ast.extern_decl.proc_stmt.name = name;
 		} else if (next_token.kind == TOKEN_FUNC) {
-			parse_func_signature(parser, &ret_type_token, &ast, true);
+			token_idx++;
+			parse_func_signature(parser,
+													 &ret_type_token,
+													 &ast.extern_decl.func_stmt,
+													 ast.loc_id,
+													 true);
 			ast.extern_decl.kind = EXTERN_FUNC;
 			ast.extern_decl.func_stmt.body = -1;
 			ast.extern_decl.func_stmt.inlin = false;
@@ -407,7 +417,7 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 
 		const token_t ret_type_token = parser->ts.tokens[token_idx++];
 
-		parse_func_signature(parser, &ret_type_token, &ast, false);
+		parse_func_signature(parser, &ret_type_token, &ast.func_stmt, ast.loc_id, false);
 
 		bool done = false;
 		size_t token_count = 0;

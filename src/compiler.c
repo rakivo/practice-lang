@@ -349,10 +349,9 @@ pre_ffi_call(size_t args_count_required)
 INLINE void
 post_ffi_call(size_t args_count_required)
 {
-	// Retrieve return values
-	for (size_t i = 0; i < args_count_required; ++i) {
-		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
-	}
+	(void) args_count_required;
+	// Only for integrals now
+	wtln("push rax");
 }
 
 static void
