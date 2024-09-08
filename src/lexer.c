@@ -73,6 +73,8 @@ token_kind_to_str(const token_kind_t token_kind)
 	case TOKEN_MUL:							return "TOKEN_MUL";
 	case TOKEN_DOT:							return "TOKEN_DOT";
 	case TOKEN_GREATER:					return "TOKEN_GREATER";
+	case TOKEN_GREATER_EQUAL:		return "TOKEN_GREATER_EQUAL";
+	case TOKEN_LESS_EQUAL:			return "TOKEN_LESS_EQUAL";
 	case TOKEN_LESS:						return "TOKEN_LESS";
 	case TOKEN_WHILE:						return "TOKEN_WHILE";
 	case TOKEN_DO:							return "TOKEN_DO";
@@ -88,6 +90,8 @@ token_kind_to_str_pretty(const token_kind_t token_kind)
 	switch (token_kind) {
 	case TOKEN_INLINE:					return "inline";
 	case TOKEN_CONST:						return "const";
+	case TOKEN_LESS_EQUAL:			return "<=";
+	case TOKEN_GREATER_EQUAL:		return ">=";
 	case TOKEN_VAR:							return "var";
 	case TOKEN_BNOT:						return "bnot";
 	case TOKEN_SYSCALL:					return "syscall";
@@ -237,8 +241,8 @@ type_token(const char *str, const loc_t *loc)
 
 	case '.': return TOKEN_DOT;
 	case '!': return TOKEN_WRITE;
-	case '>': return TOKEN_GREATER;
-	case '<': return TOKEN_LESS;
+	case '>': if (str + 1 != NULL && str[1] == '=') return TOKEN_GREATER_EQUAL; else return TOKEN_GREATER;
+	case '<': if (str + 1 != NULL && str[1] == '=') return TOKEN_LESS_EQUAL;		else return TOKEN_LESS;
 	case '+': return TOKEN_PLUS;
 	case '-': return TOKEN_MINUS;
 	case '/': return TOKEN_DIV;

@@ -130,22 +130,24 @@ print_ast(const ast_t *ast)
 		printf("body: %d\n", ast->while_stmt.body);
 	} break;
 
-	case AST_DUP:			 printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_SYSCALL:	 printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_DOT:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_DROP:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_PLUS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_MOD:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_MINUS:    printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_DIV:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_MUL:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_EQUAL:    printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_LESS:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_CALL:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_BOR:      printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_BNOT:     printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_GREATER:  printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
-	case AST_POISONED: printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_DUP:						printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_SYSCALL:				printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_DOT:						printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_DROP:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_PLUS:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_MOD:						printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_MINUS:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_DIV:						printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_MUL:						printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_EQUAL:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_LESS:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_CALL:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_BOR:						printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_BNOT:					printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_GREATER_EQUAL: printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_LESS_EQUAL:		printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_GREATER:				printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
+	case AST_POISONED:			printf("%s\n", ast_kind_to_str(ast->ast_kind)); break;
 	}
 }
 
@@ -153,31 +155,33 @@ const char *
 ast_kind_to_str(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
-	case AST_CALL:			return "AST_CALL";
-	case AST_BNOT:			return "AST_BNOT";
-	case AST_WRITE:			return "AST_WRITE";
-	case AST_VAR:				return "AST_VAR";
-	case AST_BOR:				return "AST_BOR";
-	case AST_MOD:				return "AST_MOD";
-	case AST_SYSCALL:		return "AST_SYSCALL";
-	case AST_FUNC:			return "AST_FUNC";
-	case AST_DUP:				return "AST_DUP";
-	case AST_LITERAL:		return "AST_LITERAL";
-	case AST_PROC:			return "AST_PROC";
-	case AST_DROP:			return "AST_DROP";
-	case AST_IF:				return "AST_IF";
-	case AST_POISONED:	return "AST_POISONED";
-	case AST_WHILE:			return "AST_WHILE";
-	case AST_PUSH:			return "AST_PUSH";
-	case AST_PLUS:			return "AST_PLUS";
-	case AST_DIV:				return "AST_DIV";
-	case AST_MUL:				return "AST_MUL";
-	case AST_MINUS:			return "AST_MINUS";
-	case AST_DOT:				return "AST_DOT";
-	case AST_EQUAL:			return "AST_EQUAL";
-	case AST_LESS:			return "AST_LESS";
-	case AST_GREATER:		return "AST_GREATER";
-	case AST_CONST:			return "AST_CONST";
+	case AST_CALL:					return "AST_CALL";
+	case AST_BNOT:					return "AST_BNOT";
+	case AST_WRITE:					return "AST_WRITE";
+	case AST_VAR:						return "AST_VAR";
+	case AST_BOR:						return "AST_BOR";
+	case AST_MOD:						return "AST_MOD";
+	case AST_SYSCALL:				return "AST_SYSCALL";
+	case AST_FUNC:					return "AST_FUNC";
+	case AST_DUP:						return "AST_DUP";
+	case AST_LITERAL:				return "AST_LITERAL";
+	case AST_PROC:					return "AST_PROC";
+	case AST_DROP:					return "AST_DROP";
+	case AST_IF:						return "AST_IF";
+	case AST_POISONED:			return "AST_POISONED";
+	case AST_WHILE:					return "AST_WHILE";
+	case AST_PUSH:					return "AST_PUSH";
+	case AST_PLUS:					return "AST_PLUS";
+	case AST_DIV:						return "AST_DIV";
+	case AST_MUL:						return "AST_MUL";
+	case AST_MINUS:					return "AST_MINUS";
+	case AST_DOT:						return "AST_DOT";
+	case AST_EQUAL:					return "AST_EQUAL";
+	case AST_LESS:					return "AST_LESS";
+	case AST_GREATER:				return "AST_GREATER";
+	case AST_GREATER_EQUAL:	return "AST_GREATER_EQUAL";
+	case AST_LESS_EQUAL:		return "AST_LESS_EQUAL";
+	case AST_CONST:					return "AST_CONST";
 	}
 }
 
@@ -185,31 +189,33 @@ const char *
 ast_kind_to_str_pretty(const ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
-	case AST_CALL:			return "call";
-	case AST_BNOT:			return "bnot";
-	case AST_WRITE:			return "!";
-	case AST_VAR:				return "var";
-	case AST_BOR:				return "bor";
-	case AST_MOD:				return "%";
-	case AST_SYSCALL:		return "syscall";
-	case AST_FUNC:			return "func";
-	case AST_DUP:				return "dup";
-	case AST_LITERAL:		return "literal";
-	case AST_PROC:			return "proc";
-	case AST_DROP:			return "drop";
-	case AST_IF:				return "if";
-	case AST_POISONED:	return "poisoned";
-	case AST_WHILE:			return "while";
-	case AST_PUSH:			return "push";
-	case AST_PLUS:			return "+";
-	case AST_DIV:				return "/";
-	case AST_MUL:				return "*";
-	case AST_MINUS:			return "-";
-	case AST_DOT:				return ".";
-	case AST_EQUAL:			return "=";
-	case AST_LESS:			return "<";
-	case AST_GREATER:		return ">";
-	case AST_CONST:			return "const";
+	case AST_CALL:					return "call";
+	case AST_BNOT:					return "bnot";
+	case AST_WRITE:					return "!";
+	case AST_VAR:						return "var";
+	case AST_BOR:						return "bor";
+	case AST_MOD:						return "%";
+	case AST_SYSCALL:				return "syscall";
+	case AST_FUNC:					return "func";
+	case AST_DUP:						return "dup";
+	case AST_LITERAL:				return "literal";
+	case AST_PROC:					return "proc";
+	case AST_DROP:					return "drop";
+	case AST_IF:						return "if";
+	case AST_POISONED:			return "poisoned";
+	case AST_WHILE:					return "while";
+	case AST_PUSH:					return "push";
+	case AST_PLUS:					return "+";
+	case AST_DIV:						return "/";
+	case AST_MUL:						return "*";
+	case AST_MINUS:					return "-";
+	case AST_DOT:						return ".";
+	case AST_EQUAL:					return "=";
+	case AST_LESS:					return "<";
+	case AST_GREATER:				return ">";
+	case AST_GREATER_EQUAL:	return ">=";
+	case AST_LESS_EQUAL:		return "<=";
+	case AST_CONST:					return "const";
 	}
 }
 
@@ -247,6 +253,8 @@ main_function_check(bool at_top_level, ast_t ast)
 		case AST_WRITE:
 		case AST_DROP:
 		case AST_GREATER:
+		case AST_GREATER_EQUAL:
+		case AST_LESS_EQUAL:
 		case AST_SYSCALL:
 		case AST_LITERAL: {
 			report_error("%s error: no %ss are allowed at the top level",

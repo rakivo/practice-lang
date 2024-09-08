@@ -847,6 +847,32 @@ compile_loop:
 		*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
 	} break;
 
+	case AST_GREATER_EQUAL: {
+		check_for_two_integers_on_the_stack(ctx, ">=", ast);
+		wtln("pop rax");
+		wtln("mov rbx, qword [rsp]");
+		wtln("mov rdi, 0x1");
+		wtln("xor rcx, rcx");
+		wtln("cmp rbx, rax");
+		wtln("cmovl rdi, rcx");
+		wtln("mov [rsp], rdi");
+		stack_pop(ctx);
+		*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
+	} break;
+
+	case AST_LESS_EQUAL: {
+		check_for_two_integers_on_the_stack(ctx, "<=", ast);
+		wtln("pop rax");
+		wtln("mov rbx, qword [rsp]");
+		wtln("mov rdi, 0x1");
+		wtln("xor rcx, rcx");
+		wtln("cmp rbx, rax");
+		wtln("cmovg rdi, rcx");
+		wtln("mov [rsp], rdi");
+		stack_pop(ctx);
+		*stack_at_mut(ctx, get_stack_size(ctx) - 1) = VALUE_KIND_INTEGER;
+	} break;
+
 	case AST_DROP: {
 		check_stack_for_last(ctx, "drop", ast);
 		wtln("pop rax");
@@ -1216,7 +1242,7 @@ report_if_redeclared(Compiler *ctx, const ast_t *ast, const char *key)
 		ast_id = ctx->var_map[shgeti(ctx->var_map, key)].value.ast_id;
 	}
 
-	if (-1 != ast_id) {
+	if (-1 != ast_id && ast_id != ast->ast_id) {
 		eprintf("%s error: %s `%s` got redeclared\n",
 						loc_to_str(&locid(ast->loc_id)),
 						ast_kind_to_str_pretty(ast->ast_kind),
@@ -1252,6 +1278,8 @@ fill_values_map(Compiler *ctx)
 		case AST_WRITE:
 		case AST_DROP:
 		case AST_GREATER:
+		case AST_GREATER_EQUAL:
+		case AST_LESS_EQUAL:
 		case AST_SYSCALL:
 		case AST_LITERAL: break;
 

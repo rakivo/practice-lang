@@ -51,7 +51,9 @@ typedef struct {} dot_stmt_t;
 typedef struct {} bor_stmt_t;
 typedef struct {} mod_stmt_t;
 typedef struct {} less_stmt_t;
+typedef struct {} less_equal_stmt_t;
 typedef struct {} greater_stmt_t;
+typedef struct {} greater_equal_stmt_t;
 typedef struct {} drop_stmt_t;
 typedef struct {} dup_stmt_t;
 typedef struct {} bnot_stmt_t;
@@ -145,6 +147,8 @@ typedef enum {
 	AST_MINUS,
 	AST_PLUS,
 	AST_LESS,
+	AST_GREATER_EQUAL,
+	AST_LESS_EQUAL,
 	AST_EQUAL,
 	AST_CALL,
 	AST_WRITE,
@@ -172,9 +176,11 @@ typedef struct {
 		minus_stmt_t minus_stmt;
 		div_stmt_t div_stmt;
 		mul_stmt_t mul_stmt;
-		less_stmt_t less_stmt;
 		equal_stmt_t equal_stmt;
+		less_stmt_t less_stmt;
 		greater_stmt_t greater_stmt;
+		less_equal_stmt_t less_equal_stmt;
+		greater_equal_stmt_t greater_equal_stmt;
 		while_stmt_t while_stmt;
 		drop_stmt_t drop_stmt;
 		dup_stmt_t dup_stmt;

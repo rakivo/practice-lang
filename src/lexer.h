@@ -40,8 +40,10 @@ typedef enum {
 	// Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.
 	TOKEN_KEYWORDS_END,
 
-	TOKEN_GREATER,
 	TOKEN_LESS,
+	TOKEN_GREATER,
+	TOKEN_LESS_EQUAL,
+	TOKEN_GREATER_EQUAL,
 	TOKEN_EQUAL,
 
 	TOKEN_PLUS,

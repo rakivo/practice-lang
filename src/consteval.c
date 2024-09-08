@@ -23,6 +23,8 @@ typedef enum {
 	MOD,
 	LESS,
 	GREATER,
+	LESS_EQUAL,
+	GREATER_EQUAL,
 	EQUAL
 } op_t;
 
@@ -30,15 +32,17 @@ static op_t
 op_from_ast_kind(ast_kind_t ast_kind)
 {
 	switch (ast_kind) {
-	case AST_BOR:			return BOR;
-	case AST_MOD:			return MOD;
-	case AST_MUL:			return MUL;
-	case AST_DIV:			return DIV;
-	case AST_MINUS:		return MINUS;
-	case AST_PLUS:		return PLUS;
-	case AST_LESS:		return LESS;
-	case AST_EQUAL:		return EQUAL;
-	case AST_GREATER: return GREATER;
+	case AST_BOR:						return BOR;
+	case AST_MOD:						return MOD;
+	case AST_MUL:						return MUL;
+	case AST_DIV:						return DIV;
+	case AST_MINUS:					return MINUS;
+	case AST_PLUS:					return PLUS;
+	case AST_LESS:					return LESS;
+	case AST_LESS_EQUAL:		return LESS_EQUAL;
+	case AST_GREATER_EQUAL:	return GREATER_EQUAL;
+	case AST_EQUAL:					return EQUAL;
+	case AST_GREATER:				return GREATER;
 
 	case AST_POISONED:
 	case AST_IF:
@@ -66,15 +70,17 @@ last_two_binop(Consteval *consteval, op_t op)
 	const i64 a = consteval->stack[consteval->stack_size].value;
 	const i64 b = consteval->stack[consteval->stack_size - 1].value;
 	switch (op) {
-	case PLUS:		return a + b;
-	case BOR:			return a | b;
-	case MINUS:		return b - b;
-	case DIV:			return b / a;
-	case MUL:			return a * b;
-	case MOD:			return b % a;
-	case GREATER: return b > a;
-	case LESS:		return b < a;
-	case EQUAL:		return b == a;
+	case PLUS:					return a + b;
+	case BOR:						return a | b;
+	case MINUS:					return b - b;
+	case DIV:						return b / a;
+	case MUL:						return a * b;
+	case MOD:						return b % a;
+	case GREATER:				return b > a;
+	case GREATER_EQUAL: return b >= a;
+	case LESS:					return b < a;
+	case LESS_EQUAL:		return b <= a;
+	case EQUAL:					return b == a;
 	}
 }
 
@@ -150,6 +156,8 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	case AST_BOR:
 	case AST_LESS:
 	case AST_GREATER:
+	case AST_GREATER_EQUAL:
+	case AST_LESS_EQUAL:
 	case AST_MOD:
 	case AST_EQUAL:
 	case AST_MUL: {

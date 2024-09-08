@@ -557,26 +557,28 @@ ast_token(Parser *parser, const token_t *token, bool rec)
 		return (ast_t) make_ast(0, token->loc_id, ++next, AST_WRITE, .write_stmt = {token});
 	} break;
 
-	case TOKEN_DROP:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_DROP,			.drop_stmt		= {0});
-	case TOKEN_DUP:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DUP,			.dup_stmt			= {0});
-	case TOKEN_EQUAL:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_EQUAL,		.equal_stmt		= {0});
-	case TOKEN_GREATER:		return (ast_t) make_ast(0, token->loc_id, ++next, AST_GREATER,	.greater_stmt = {0});
-	case TOKEN_LESS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_LESS,			.less_stmt		= {0});
-	case TOKEN_SYSCALL:		return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {0});
-	case TOKEN_SYSCALL1:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {1});
-	case TOKEN_SYSCALL2:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {2});
-	case TOKEN_SYSCALL3:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {3});
-	case TOKEN_SYSCALL4:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {4});
-	case TOKEN_SYSCALL5:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {5});
-	case TOKEN_SYSCALL6:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,	.syscall			= {6});
-	case TOKEN_BOR:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_BOR,			.bor_stmt			= {0});
-	case TOKEN_MUL:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_MUL,			.mul_stmt			= {0});
-	case TOKEN_DIV:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DIV,			.div_stmt			= {0});
-	case TOKEN_MINUS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_MINUS,		.minus_stmt		= {0});
-	case TOKEN_PLUS:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_PLUS,			.plus_stmt		= {0});
-	case TOKEN_MOD:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_MOD,			.mod_stmt			= {0});
-	case TOKEN_DOT:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_DOT,			.dot_stmt			= {0});
-	case TOKEN_BNOT:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_BNOT,			.bnot_stmt		= {0});
+	case TOKEN_DROP:					return (ast_t) make_ast(0, token->loc_id, ++next, AST_DROP,						.drop_stmt					= {0});
+	case TOKEN_DUP:						return (ast_t) make_ast(0, token->loc_id, ++next, AST_DUP,						.dup_stmt						= {0});
+	case TOKEN_EQUAL:					return (ast_t) make_ast(0, token->loc_id, ++next, AST_EQUAL,					.equal_stmt					= {0});
+	case TOKEN_GREATER:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_GREATER,				.greater_stmt				= {0});
+	case TOKEN_GREATER_EQUAL:	return (ast_t) make_ast(0, token->loc_id, ++next, AST_GREATER_EQUAL,	.greater_equal_stmt = {0});
+	case TOKEN_LESS_EQUAL:		return (ast_t) make_ast(0, token->loc_id, ++next, AST_LESS_EQUAL,			.less_equal_stmt		= {0});
+	case TOKEN_LESS:					return (ast_t) make_ast(0, token->loc_id, ++next, AST_LESS,						.less_stmt					= {0});
+	case TOKEN_SYSCALL:				return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {0});
+	case TOKEN_SYSCALL1:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {1});
+	case TOKEN_SYSCALL2:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {2});
+	case TOKEN_SYSCALL3:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {3});
+	case TOKEN_SYSCALL4:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {4});
+	case TOKEN_SYSCALL5:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {5});
+	case TOKEN_SYSCALL6:			return (ast_t) make_ast(0, token->loc_id, ++next, AST_SYSCALL,				.syscall						= {6});
+	case TOKEN_BOR:						return (ast_t) make_ast(0, token->loc_id, ++next, AST_BOR,						.bor_stmt						= {0});
+	case TOKEN_MUL:						return (ast_t) make_ast(0, token->loc_id, ++next, AST_MUL,						.mul_stmt						= {0});
+	case TOKEN_DIV:						return (ast_t) make_ast(0, token->loc_id, ++next, AST_DIV,						.div_stmt						= {0});
+	case TOKEN_MINUS:					return (ast_t) make_ast(0, token->loc_id, ++next, AST_MINUS,					.minus_stmt					= {0});
+	case TOKEN_PLUS:					return (ast_t) make_ast(0, token->loc_id, ++next, AST_PLUS,						.plus_stmt					= {0});
+	case TOKEN_MOD:						return (ast_t) make_ast(0, token->loc_id, ++next, AST_MOD,						.mod_stmt						= {0});
+	case TOKEN_DOT:						return (ast_t) make_ast(0, token->loc_id, ++next, AST_DOT,						.dot_stmt						= {0});
+	case TOKEN_BNOT:					return (ast_t) make_ast(0, token->loc_id, ++next, AST_BNOT,						.bnot_stmt					= {0});
 	}
 	__builtin_unreachable();
 }
