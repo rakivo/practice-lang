@@ -2,6 +2,56 @@
 
 ## `prac` - An Esoteric Concatenative Stack Based Statically Typed Computer Programming Language
 
+# Super simple example of calling raylib from [`prac` Programming Language](https://github.com/rakivo/practice-lang)
+> You can take a closer look at the example here: <https://github.com/rakivo/practice-lang/blob/master/prac/raylib.prac>
+```
+include "prac/raylib_bindings.prac"
+
+const KEY_Q 81                       end
+const FONT_SIZE 50                   end
+const TEXT_COLOR 4294967295          end
+const BACKGROUND_COLOR 1095620892696 end
+
+inline func get_text_x int
+do
+  GetScreenWidth! 2 / FONT_SIZE 3 * -
+end
+
+inline func get_text_y int
+do
+  GetScreenHeight! 2 / FONT_SIZE -
+end
+
+func main int do
+  800 600 "hello\n" InitWindow!
+
+  KEY_Q SetExitKey!
+
+  while WindowShouldClose! 0 = do
+    BeginDrawing!
+      BACKGROUND_COLOR ClearBackground!
+      "hello world"
+      get_text_x!
+      get_text_y!
+      FONT_SIZE
+      TEXT_COLOR
+      DrawText!
+    EndDrawing!
+  end
+
+  CloseWindow!
+
+  0
+end
+```
+> To run the example (you also need to have [raylib](https://github.com/raysan5/raylib/) install on your machine):
+```console
+$ make
+$ ./build/pracc ./prac/raylib.prac
+$ make link_with_raylib
+$ ./out
+```
+
 ## Functions in the [`prac` Programming Language](https://github.com/rakivo/practice-lang)
 
 #### An example of declaring and defining a function:

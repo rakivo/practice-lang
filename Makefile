@@ -30,5 +30,5 @@ $(BUILD_DIR)/$(BIN_FILE): $(ROOT_FILE) $(OBJ_FILES) $(BUILD_DIR)
 	$(CC) -o $@ $(CFLAGS) $(WFLAGS) $(OBJ_FILES) $<
 
 link_with_raylib: $(GENERATED_BIN_FILE_NAME)
-$(GENERATED_BIN_FILE_NAME): $(GENERATED_BIN_FILE_NAME).o $(GENERATED_BIN_FILE_NAME).asm
+$(GENERATED_BIN_FILE_NAME): $(GENERATED_BIN_FILE_NAME).o all $(GENERATED_BIN_FILE_NAME).asm
 	ld -o $@ $< -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lraylib -lc -lm

@@ -149,7 +149,7 @@ compile_asm_step(void)
 #endif
 
 	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS);
-	nob_cmd_run_sync(cmd, 1);
+	nob_cmd_run_sync(cmd, dbg_echo);
 	cmd.count = 0;
 
 #ifndef DEBUG
