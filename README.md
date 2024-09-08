@@ -1,3 +1,5 @@
+# EXTREMELY IMPORTANT! THIS LANGUAGE IS A WORK IN PROGRESS! ANYTHING CAN CHANGE AT ANY MOMENT WITHOUT ANY NOTICE! USE THIS LANGUAGE AT YOUR OWN RISK!
+
 ## `prac` - An Esoteric Concatenative Stack Based Statically Typed Computer Programming Language
 
 ## Functions in the [`prac` Programming Language](https://github.com/rakivo/practice-lang)
