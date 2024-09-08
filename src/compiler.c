@@ -50,6 +50,11 @@ struct {
 	value_t value;
 } *values_map = NULL;
 
+struct {
+	const char *key;
+	value_t value;
+} *externs_map = NULL;
+
 static void
 compile_ast(Compiler *ctx, const ast_t *ast);
 
@@ -332,20 +337,42 @@ check_for_arg(Compiler *ctx, const char *str)
 	return arg;
 }
 
+INLINE void
+pre_ffi_call(size_t args_count_required)
+{
+	// Convert `prac-language` to `x86_64_linux` convention
+	for (size_t i = 0; i < args_count_required; ++i) {
+		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+	}
+}
+
+INLINE void
+post_ffi_call(size_t args_count_required)
+{
+	// Retrieve return values
+	for (size_t i = 0; i < args_count_required; ++i) {
+		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+	}
+}
+
 static void
-compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
+compile_function_call(Compiler *ctx, value_t value, const ast_t *ast)
 {
 	const size_t stack_size = get_stack_size(ctx);
 
 	size_t args_count_required = 0;
-	const value_t value = values_map[value_idx].value;
-	const ast_t *decl_ast = &astid(values_map[value_idx].value.ast_id);
+	const ast_t *decl_ast = &astid(value.ast_id);
 	if (value.ast_kind == AST_PROC) {
 		args_count_required = vec_size(decl_ast->proc_stmt.args);
 	} else if (value.ast_kind == AST_FUNC) {
 		args_count_required = vec_size(decl_ast->func_stmt.args);
+	} else if (value.ast_kind == AST_EXTERN) {
+		switch (decl_ast->extern_decl.kind) {
+		case EXTERN_FUNC: args_count_required = vec_size(decl_ast->extern_decl.func_stmt.args); break;
+		case EXTERN_PROC: args_count_required = vec_size(decl_ast->extern_decl.proc_stmt.args); break;
+		}
 	} else {
-		UNREACHABLE;
+		UNREACHABLE
 	}
 
 	if (stack_size < args_count_required) {
@@ -365,11 +392,28 @@ compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
 			printf("--- %s ---\n", decl_ast->proc_stmt.name->str);
 #endif
 			expected = decl_ast->proc_stmt.args[i].kind;
-		} else {
+		} else if (value.ast_kind == AST_FUNC) {
 #if defined(DEBUG) || defined(PRINT_STACK)
 			printf("--- %s ---\n", decl_ast->func_stmt.name->str);
 #endif
 			expected = decl_ast->func_stmt.args[i].kind;
+		} else if (value.ast_kind == AST_EXTERN) {
+			switch (decl_ast->extern_decl.kind) {
+			case EXTERN_FUNC: {
+#if defined(DEBUG) || defined(PRINT_STACK)
+				printf("--- %s ---\n", decl_ast->extern_decl.func_stmt.name->str);
+#endif
+				expected = decl_ast->extern_decl.func_stmt.args[i].kind;
+			} break;
+			case EXTERN_PROC: {
+#if defined(DEBUG) || defined(PRINT_STACK)
+				printf("--- %s ---\n", decl_ast->extern_decl.proc_stmt.name->str);
+#endif
+				expected = decl_ast->extern_decl.proc_stmt.args[i].kind;
+			} break;
+			}
+		} else {
+			UNREACHABLE
 		}
 
 #if defined(DEBUG) || defined(PRINT_STACK)
@@ -384,8 +428,19 @@ compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
 				arg_loc = astid(ast->ast_id - 1).loc_id;
 			} else if (value.ast_kind == AST_PROC) {
 				arg_loc = decl_ast->proc_stmt.args[i].loc_id;
-			} else {
+			} else if (value.ast_kind == AST_FUNC) {
 				arg_loc = decl_ast->func_stmt.args[i].loc_id;
+			} else if (value.ast_kind == AST_EXTERN) {
+				switch (decl_ast->extern_decl.kind) {
+				case EXTERN_FUNC: {
+					arg_loc = decl_ast->extern_decl.func_stmt.args[i].loc_id;
+				} break;
+				case EXTERN_PROC: {
+					arg_loc = decl_ast->extern_decl.proc_stmt.args[i].loc_id;
+				} break;
+				}
+			} else {
+				UNREACHABLE
 			}
 
 			eprintf("%s error: expected %zuth argument to call `%s` to be `%s`, but "
@@ -409,8 +464,8 @@ compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
 		} else {
 			wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
 		}
-	} else {
-		if (decl_ast->func_stmt.inlin && decl_ast->func_stmt.body >= 0) {
+	} else if (value.ast_kind == AST_PROC && decl_ast->func_stmt.body >= 0) {
+		if (decl_ast->func_stmt.inlin) {
 			compile_inline(ctx, decl_ast, false);
 		} else {
 			wtprintln("call __%s__", decl_ast->func_stmt.name->str);
@@ -420,6 +475,24 @@ compile_function_call(Compiler *ctx, i32 value_idx, const ast_t *ast)
 		for (size_t i = vec_size(decl_ast->func_stmt.ret_types); i > 0; --i) {
 			stack_add_type(ctx, decl_ast->func_stmt.ret_types[i - 1]);
 		}
+	} else if (value.ast_kind == AST_EXTERN) {
+		switch (decl_ast->extern_decl.kind) {
+		case EXTERN_FUNC: {
+			pre_ffi_call(args_count_required);
+			wtprintln("call %s", decl_ast->extern_decl.func_stmt.name->str);
+			post_ffi_call(args_count_required);
+			// Add return values from function to the types stack
+			for (size_t i = vec_size(decl_ast->extern_decl.func_stmt.ret_types); i > 0; --i) {
+				stack_add_type(ctx, decl_ast->extern_decl.func_stmt.ret_types[i - 1]);
+			}
+		} break;
+		case EXTERN_PROC: {
+			pre_ffi_call(args_count_required);
+			wtprintln("call %s", decl_ast->extern_decl.proc_stmt.name->str);
+		} break;
+		}
+	} else {
+		UNREACHABLE
 	}
 
 	const value_t value_ = {
@@ -488,7 +561,8 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 	case AST_VAR:
 	case AST_FUNC:
 	case AST_CONST:
-	case AST_PROC: {} break;
+	case AST_EXTERN:
+	case AST_PROC: break;
 
 	case AST_IF: {
 		check_for_integer_on_the_stack(ctx, "if",
@@ -671,10 +745,13 @@ compile_loop:
 	} break;
 
 	case AST_CALL: {
-		const i32 value_idx = shgeti(values_map, ast->call.str);
-		const i32 var_idx = shgeti(ctx->var_map, ast->call.str);
+		const i32 value_idx		= shgeti(values_map, ast->call.str);
+		const i32 extern_idx	= shgeti(externs_map, ast->call.str);
+		const i32 var_idx			= shgeti(ctx->var_map, ast->call.str);
 		if (value_idx != -1) {
-			compile_function_call(ctx, value_idx, ast);
+			compile_function_call(ctx, values_map[value_idx].value, ast);
+		} else if (extern_idx != -1) {
+			compile_function_call(ctx, externs_map[extern_idx].value, ast);
 		} else if (var_idx != -1) {
 			wtprintln("mov rax, [%s]", ctx->var_map[var_idx].key);
 			wtln("push rax");
@@ -1097,6 +1174,7 @@ new_compiler(ast_id_t ast_cur,
 static void
 compiler_deinit(void)
 {
+	shfree(externs_map);
 	shfree(values_map);
 	fclose(stream);
 }
@@ -1236,6 +1314,8 @@ report_if_redeclared(Compiler *ctx, const ast_t *ast, const char *key)
 
 	if (-1 != shgeti(values_map, key)) {
 		ast_id = values_map[shgeti(values_map, key)].value.ast_id;
+	} else if (-1 != shgeti(externs_map, key)) {
+		ast_id = externs_map[shgeti(externs_map, key)].value.ast_id;
 	} else if (-1 != shgeti(ctx->const_map, key)) {
 		ast_id = ctx->const_map[shgeti(ctx->const_map, key)].value.ast_id;
 	} else if (-1 != shgeti(ctx->var_map, key)) {
@@ -1254,7 +1334,7 @@ report_if_redeclared(Compiler *ctx, const ast_t *ast, const char *key)
 }
 
 static void
-fill_values_map(Compiler *ctx)
+fill_maps(Compiler *ctx)
 {
 	ast_t ast = astid(0);
 	while (ast.next && ast.next <= ASTS_SIZE) {
@@ -1282,6 +1362,20 @@ fill_values_map(Compiler *ctx)
 		case AST_LESS_EQUAL:
 		case AST_SYSCALL:
 		case AST_LITERAL: break;
+
+		case AST_EXTERN: {
+			const char *name = NULL;
+			switch (ast.extern_decl.kind) {
+			case EXTERN_FUNC: name = ast.extern_decl.func_stmt.name->str; break;
+			case EXTERN_PROC: name = ast.extern_decl.proc_stmt.name->str; break;
+			}
+			report_if_redeclared(ctx, &ast, name);
+			const value_t value = {
+				.ast_id = ast.ast_id,
+				.ast_kind = ast.ast_kind
+			};
+			shput(externs_map, name, value);
+		} break;
 
 		case AST_VAR: {
 			report_if_redeclared(ctx, &ast, ast.var_stmt.name->str);
@@ -1359,6 +1453,22 @@ compile_funcs_and_procs(Compiler *ctx)
 	}
 }
 
+static void
+print_externs(void)
+{
+	for (ptrdiff_t i = 0; i < shlen(externs_map); ++i) {
+		const extern_decl_t *extern_decl = &astid(externs_map[i].value.ast_id).extern_decl;
+		switch (extern_decl->kind) {
+		case EXTERN_FUNC: {
+			wprintln(EXTERN " %s", extern_decl->func_stmt.name->str);
+		} break;
+		case EXTERN_PROC: {
+			wprintln(EXTERN " %s", extern_decl->proc_stmt.name->str);
+		} break;
+		}
+	}
+}
+
 void
 compiler_compile(Compiler *ctx)
 {
@@ -1373,7 +1483,8 @@ compiler_compile(Compiler *ctx)
 	print_defines();
 	wln(SECTION_TEXT_EXECUTABLE);
 
-	fill_values_map(ctx);
+	fill_maps(ctx);
+	print_externs();
 
 	ast_t ast = astid(ctx->ast_cur);
 	compile_func(ctx, &ast);

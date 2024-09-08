@@ -13,8 +13,7 @@
 #define append_ast(ast_) (ASTS[ast_.ast_id] = ast_)
 
 // Last argument represents stmt
-#define make_ast(file_id_, loc_id_, next_, ast_kind_, ...) {	\
-	.file_id = file_id_, \
+#define make_ast(loc_id_, next_, ast_kind_, ...) {	\
 	.loc_id = loc_id_, \
 	.ast_id = ASTS_SIZE++, \
 	.next = next_, \
@@ -131,6 +130,19 @@ typedef struct {
 } while_stmt_t;
 
 typedef enum {
+	EXTERN_FUNC,
+	EXTERN_PROC,
+} extern_kind_t;
+
+typedef struct {
+	extern_kind_t kind;
+	union {
+		proc_stmt_t proc_stmt;
+		func_stmt_t func_stmt;
+	};
+} extern_decl_t;
+
+typedef enum {
 	AST_POISONED,
 	AST_IF,
 	AST_FUNC,
@@ -155,19 +167,20 @@ typedef enum {
 	AST_DROP,
 	AST_GREATER,
 	AST_VAR,
+	AST_EXTERN,
 	AST_CONST,
 	AST_SYSCALL,
 	AST_LITERAL,
 } ast_kind_t;
 
 typedef struct {
-	file_id_t file_id;
 	loc_id_t loc_id;
 	ast_id_t ast_id;
 	ast_id_t next;
 	ast_kind_t ast_kind;
 
 	union {
+		call_t call;
 		syscall_t syscall;
 		if_stmt_t if_stmt;
 		dot_stmt_t dot_stmt;
@@ -177,10 +190,6 @@ typedef struct {
 		div_stmt_t div_stmt;
 		mul_stmt_t mul_stmt;
 		equal_stmt_t equal_stmt;
-		less_stmt_t less_stmt;
-		greater_stmt_t greater_stmt;
-		less_equal_stmt_t less_equal_stmt;
-		greater_equal_stmt_t greater_equal_stmt;
 		while_stmt_t while_stmt;
 		drop_stmt_t drop_stmt;
 		dup_stmt_t dup_stmt;
@@ -192,8 +201,12 @@ typedef struct {
 		mod_stmt_t mod_stmt;
 		write_stmt_t write_stmt;
 		bnot_stmt_t bnot_stmt;
-		call_t call;
 		literal_t literal;
+		less_stmt_t less_stmt;
+		greater_stmt_t greater_stmt;
+		less_equal_stmt_t less_equal_stmt;
+		greater_equal_stmt_t greater_equal_stmt;
+		extern_decl_t extern_decl;
 	};
 } ast_t;
 
@@ -212,6 +225,9 @@ print_ast(const ast_t *ast);
 
 extern ast_id_t main_function;
 extern ast_id_t main_function_not_at_top_level;
+
+const char *
+extern_kind_to_str(const extern_kind_t extern_kind);
 
 void
 main_function_check(bool at_top_level, ast_t ast);

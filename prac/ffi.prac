@@ -1,0 +1,7 @@
+extern proc _exit int code end
+
+func main int do
+  69 _exit!
+
+  0
+end

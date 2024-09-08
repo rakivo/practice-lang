@@ -37,6 +37,7 @@ const char *KEYWORDS[KEYWORDS_SIZE] = {
 	[TOKEN_SYSCALL4]	= "syscall4",
 	[TOKEN_SYSCALL5]	= "syscall5",
 	[TOKEN_SYSCALL6]	= "syscall6",
+	[TOKEN_EXTERN]		= "extern",
 	[TOKEN_END]				= "end"
 };
 
@@ -44,6 +45,7 @@ const char *
 token_kind_to_str(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_EXTERN:					return "TOKEN_EXTERN";
 	case TOKEN_INLINE:					return "TOKEN_INLINE";
 	case TOKEN_WRITE:						return "TOKEN_WRITE";
 	case TOKEN_BNOT:						return "TOKEN_BNOT";
@@ -88,6 +90,7 @@ const char *
 token_kind_to_str_pretty(const token_kind_t token_kind)
 {
 	switch (token_kind) {
+	case TOKEN_EXTERN:					return "extern";
 	case TOKEN_INLINE:					return "inline";
 	case TOKEN_CONST:						return "const";
 	case TOKEN_LESS_EQUAL:			return "<=";
@@ -236,6 +239,7 @@ type_token(const char *str, const loc_t *loc)
 	switch (first) {
 	case NUMBER_CHAR_CASE: return TOKEN_INTEGER; break;
 
+	case '_':
 	case LOWER_CHAR_CASE:
 	case UPPER_CHAR_CASE: return TOKEN_LITERAL; break;
 

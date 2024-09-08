@@ -9,10 +9,8 @@
 #define OBJECT_OUTPUT "out.o"
 #define X86_64_OUTPUT "out.asm"
 #define EXECUTABLE_OUTPUT "out"
-
 #define ASM_OUTPUT_FLAGS "-o", OBJECT_OUTPUT
 #define LD_OUTPUT_FLAGS "-o", EXECUTABLE_OUTPUT
-
 #define PATH_TO_LD_EXECUTABLE "/usr/bin/ld"
 
 #ifndef DEBUG
@@ -20,6 +18,7 @@
 #endif
 
 #ifdef FASM
+	#define EXTERN "extrn"
 	#define DEFINE "define"
 	#define GLOBAL "public"
 	#define ASM_FLAGS "-m", "524288", EXECUTABLE_OUTPUT".tmp"
@@ -32,6 +31,7 @@
 	#define SECTION_DATA_WRITEABLE "section '.data' writeable"
 	#define SECTION_TEXT_EXECUTABLE "section '.text' executable"
 #else
+	#define EXTERN "extern"
 	#define DEFINE "%%define"
 	#define GLOBAL "global"
 	#define COMPTIME_EQU "equ"

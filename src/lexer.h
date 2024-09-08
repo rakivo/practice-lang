@@ -35,6 +35,7 @@ typedef enum {
 	TOKEN_SYSCALL6,
 	TOKEN_BNOT,
 	TOKEN_INLINE,
+	TOKEN_EXTERN,
 	TOKEN_END,
 
 	// Separator of keywords and other tokens, which is also the size of `KEYWORDS` array.

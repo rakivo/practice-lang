@@ -49,6 +49,7 @@ op_from_ast_kind(ast_kind_t ast_kind)
 	case AST_FUNC:
 	case AST_VAR:
 	case AST_PROC:
+	case AST_EXTERN:
 	case AST_BNOT:
 	case AST_WHILE:
 	case AST_DOT:
@@ -97,6 +98,7 @@ simulate_ast(Consteval *consteval, const ast_t *ast)
 	case AST_SYSCALL:
 	case AST_VAR:
 	case AST_WRITE:
+	case AST_EXTERN:
 	case AST_CONST: {
 		report_error("%s error: unexpected operation, "
 								 "supported operations in constant evaluation:\n"
