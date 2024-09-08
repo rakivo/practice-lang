@@ -149,15 +149,15 @@ compile_asm_step(void)
 #endif
 
 	nob_cmd_append(&cmd, PATH_TO_ASM_EXECUTABLE, X86_64_OUTPUT, ASM_FLAGS);
-	nob_cmd_run_sync(cmd, dbg_echo);
+	nob_cmd_run_sync(cmd, 1);
 	cmd.count = 0;
 
 #ifndef DEBUG
 	nob_rename(EXECUTABLE_OUTPUT".tmp", OBJECT_OUTPUT, dbg_echo);
 #endif
 
-	nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
-	nob_cmd_run_sync(cmd, dbg_echo);
+	// nob_cmd_append(&cmd, PATH_TO_LD_EXECUTABLE, OBJECT_OUTPUT, LD_OUTPUT_FLAGS);
+	// nob_cmd_run_sync(cmd, 1);
 
 #ifdef DEBUG
 	dbg_time("compiling asm");

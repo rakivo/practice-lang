@@ -1,0 +1,22 @@
+extern proc InitWindow
+  int w
+  int h
+  str title
+end
+
+extern proc DrawText
+  str text
+  int x
+  int y
+  int font_size
+  int color
+end
+
+extern proc CloseWindow end
+extern proc BeginDrawing end
+extern proc EndDrawing end
+extern func WindowShouldClose int end
+extern func GetScreenHeight int end
+extern func GetScreenWidth int end
+extern proc SetExitKey int key end
+extern proc ClearBackground int color end

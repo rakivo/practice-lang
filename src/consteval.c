@@ -200,9 +200,12 @@ consteval_eval(Consteval *consteval, const ast_t *const_ast, bool is_var)
 {
 	consteval->stack_size = 0;
 	ast_t ast = astid(is_var ? const_ast->var_stmt.body : const_ast->const_stmt.body);
-	while (ast.next && ast.next <= ASTS_SIZE) {
+	while (ast.next <= ASTS_SIZE) {
 		simulate_ast(consteval, &ast);
-		ast = astid(ast.next);
+		if (ast.next < 0) {
+			simulate_ast(consteval, &ast);
+			break;
+		} else ast = astid(ast.next);
 	}
 
 	if (consteval->stack_size < 1) {

@@ -1,0 +1,38 @@
+include "prac/raylib_bindings.prac"
+
+const KEY_Q 81                       end
+const FONT_SIZE 50                   end
+const TEXT_COLOR 4294967295          end
+const BACKGROUND_COLOR 1095620892696 end
+
+inline func get_text_x int
+do
+  GetScreenWidth! 2 / FONT_SIZE 3 * -
+end
+
+inline func get_text_y int
+do
+  GetScreenHeight! 2 / FONT_SIZE -
+end
+
+func main int do
+  800 600 "hello\n" InitWindow!
+
+  KEY_Q SetExitKey!
+
+  while WindowShouldClose! 0 = do
+    BeginDrawing!
+      BACKGROUND_COLOR ClearBackground!
+      "hello world"
+      get_text_x!
+      get_text_y!
+      FONT_SIZE
+      TEXT_COLOR
+      DrawText!
+    EndDrawing!
+  end
+
+  CloseWindow!
+
+  0
+end

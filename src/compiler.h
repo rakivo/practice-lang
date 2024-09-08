@@ -21,7 +21,7 @@
 	#define EXTERN "extrn"
 	#define DEFINE "define"
 	#define GLOBAL "public"
-	#define ASM_FLAGS "-m", "524288", EXECUTABLE_OUTPUT".tmp"
+	#define ASM_FLAGS EXECUTABLE_OUTPUT".tmp"
 	#define COMPTIME_EQU "="
 	#define RESERVE_QUAD "rq"
 	#define FORMAT_64BIT "format ELF64"

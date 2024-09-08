@@ -35,8 +35,8 @@ static const char **strs = NULL;
 static bool used_strlen = false;
 static bool used_dmp_i64 = false;
 
-static const char *X86_64_LINUX_CONVENTION_REGISTERS[6] = {
-	"rdi", "rsi", "rdx", "r10", "r8", "r9"
+static const char *X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[6] = {
+	"rdi", "rsi", "rdx", "rcx", "r8", "r9"
 };
 
 typedef struct {
@@ -287,7 +287,7 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 		0: vec_size(ret_types);
 
 	for (size_t i = 0; i < ret_types_count; ++i) {
-		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+		wtprintln("pop %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[i]);
 	}
 
 	// Set rsp to the old rsp
@@ -299,7 +299,7 @@ compile_inline(Compiler *ctx, const ast_t *decl_ast, bool is_proc)
 																		: decl_ast->func_stmt.args) * WORD_SIZE);
 
 	for (size_t i = 0; i < ret_types_count; ++i) {
-		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+		wtprintln("push %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[i]);
 	}
 
 	// Set  current context to the old one
@@ -342,16 +342,16 @@ pre_ffi_call(size_t args_count_required)
 {
 	// Convert `prac-language` to `x86_64_linux` convention
 	for (size_t i = 0; i < args_count_required; ++i) {
-		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+		wtprintln("pop %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[args_count_required - 1 - i]);
 	}
+	wtln("sub rsp, WORD_SIZE");
 }
 
 INLINE void
 post_ffi_call(size_t args_count_required)
 {
+	wtln("add rsp, WORD_SIZE");
 	(void) args_count_required;
-	// Only for integrals now
-	wtln("push rax");
 }
 
 static void
@@ -457,13 +457,13 @@ compile_function_call(Compiler *ctx, value_t value, const ast_t *ast)
 		stack_pop(ctx);
 	}
 
-	if (value.ast_kind == AST_PROC && decl_ast->proc_stmt.body >= 0) {
+	if (value.ast_kind == AST_PROC) {
 		if (decl_ast->proc_stmt.inlin) {
 			compile_inline(ctx, decl_ast, true);
 		} else {
 			wtprintln("call __%s__", decl_ast->proc_stmt.name->str);
 		}
-	} else if (value.ast_kind == AST_PROC && decl_ast->func_stmt.body >= 0) {
+	} else if (value.ast_kind == AST_FUNC) {
 		if (decl_ast->func_stmt.inlin) {
 			compile_inline(ctx, decl_ast, false);
 		} else {
@@ -480,6 +480,8 @@ compile_function_call(Compiler *ctx, value_t value, const ast_t *ast)
 			pre_ffi_call(args_count_required);
 			wtprintln("call %s", decl_ast->extern_decl.func_stmt.name->str);
 			post_ffi_call(args_count_required);
+			// Only for integrals now
+			wtln("push rax");
 			// Add return values from function to the types stack
 			for (size_t i = vec_size(decl_ast->extern_decl.func_stmt.ret_types); i > 0; --i) {
 				stack_add_type(ctx, decl_ast->extern_decl.func_stmt.ret_types[i - 1]);
@@ -488,6 +490,7 @@ compile_function_call(Compiler *ctx, value_t value, const ast_t *ast)
 		case EXTERN_PROC: {
 			pre_ffi_call(args_count_required);
 			wtprintln("call %s", decl_ast->extern_decl.proc_stmt.name->str);
+			post_ffi_call(args_count_required);
 		} break;
 		}
 	} else {
@@ -632,7 +635,7 @@ compile_ast(Compiler *ctx, const ast_t *ast)
 
 		// Pop all the shit in the reversed order
 		for (u8 i = 0; i < ast->syscall.args_count; ++i) {
-			wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[ast->syscall.args_count - 1 - i]);
+			wtprintln("pop %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[ast->syscall.args_count - 1 - i]);
 		}
 
 		wtln("syscall");
@@ -716,10 +719,12 @@ compile_loop:
 		const i32 var_idx   = shgeti(ctx->var_map, ast->literal.str);
 		if (const_idx != -1) {
 			const consteval_value_t value = ctx->const_map[const_idx].value;
-			wtprintln("push 0x%lX", value.value);
+			wtprintln("mov rax, 0x%lX", value.value);
+			wtln("push rax");
 			stack_add_type(ctx, value.kind);
 		} else if (var_idx != -1) {
-			wtprintln("push [%s]", ast->literal.str);
+			wtprintln("mov rax, [%s]", ast->literal.str);
+			wtln("push rax");
 			stack_add_type(ctx, ctx->const_map[const_idx].value.kind);
 		} else if (value_idx != -1) {
 			const value_t value = values_map[value_idx].value;
@@ -1275,13 +1280,13 @@ compile_func(Compiler *ctx, const ast_t *ast)
 
 	// Save return values into the registers
 	for (size_t i = 0; i < ret_types_count; ++i) {
-		wtprintln("pop %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+		wtprintln("pop %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[i]);
 	}
 
 	// If name of the function is `main`, save last returned value to the `ret_code`,
 	// to use it as an exit code in the future.
 	if (0 == strcmp(MAIN_FUNCTION, ctx->func_ctx.stmt->name->str)) {
-		wtprintln("mov [ret_code], %s", X86_64_LINUX_CONVENTION_REGISTERS[ret_types_count - 1]);
+		wtprintln("mov [ret_code], %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[ret_types_count - 1]);
 	}
 
 	rsp_stack_mov_to_rsp();
@@ -1294,7 +1299,7 @@ compile_func(Compiler *ctx, const ast_t *ast)
 
 	// Retrieve return values
 	for (size_t i = 0; i < ret_types_count; ++i) {
-		wtprintln("push %s", X86_64_LINUX_CONVENTION_REGISTERS[i]);
+		wtprintln("push %s", X86_64_LINUX_SYSTEM_V_CONVENTION_REGISTERS[i]);
 	}
 
 	// Push return address from rax and return
