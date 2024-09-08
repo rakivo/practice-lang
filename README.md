@@ -4,7 +4,7 @@
 
 # Super simple example of calling raylib from [`prac` Programming Language](https://github.com/rakivo/practice-lang)
 > You can take a closer look at the example here: <https://github.com/rakivo/practice-lang/blob/master/prac/raylib.prac>
-```
+```ruby
 include "prac/raylib_bindings.prac"
 
 const KEY_Q 81                       end
@@ -63,7 +63,7 @@ end
 > As you can see, the procedure does not accept any arguments and returns an integer. And, you've just seen the definition of the `main` function, which is mandatory for all [`prac-lang`](https://github.com/rakivo/practice-lang) programs.
 
 > Function which accepts an integer and returns its square:
-```
+```ruby
 func square int
   int x
 do
@@ -91,14 +91,14 @@ end
 # [Procedures in the `prac` Programming Language](https://github.com/rakivo/practice-lang/procs.md)
 
 #### An example of declaring and defining a procedure:
-```
+```ruby
 proc hello do
   "hello world\n" . drop
 end
 ```
 > As you can see, the procedure does not accept any arguments, you can see how to accept them in the next snippet.
 
-```
+```ruby
 proc print_sum
   int a
   int b
@@ -112,7 +112,7 @@ end
 > Essentially, procedures in the language do not have access to the global stack, which means that you can manipulate with the global stack only by accepting arguments.
 
 ##### But what happens if you have remaining values at the end of the procedure, like in this procedure:
-```
+```ruby
 proc foo
   int a
   int b

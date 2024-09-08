@@ -1,7 +1,7 @@
 ## Functions in the [`prac` Programming Language](https://github.com/rakivo/practice-lang)
 
 #### An example of declaring and defining a function:
-```
+```ruby
 func main int do
   0
 end
@@ -9,7 +9,7 @@ end
 > As you can see, the procedure does not accept any arguments and returns an integer. And, you've just seen the definition of the `main` function, which is mandatory for all [`prac-lang`](https://github.com/rakivo/practice-lang) programs.
 
 > Function which accepts an integer and returns its square:
-```
+```ruby
 func square int
   int x
 do
@@ -24,7 +24,7 @@ end
 
 #### Function that returns many values
 > I added this feature yesterday (2024-09-06), the syntax is so simple, just look at this function's signature:
-```
+```ruby
 func swap int int
   int a
   int b
